@@ -1,0 +1,83 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "django-libsql"
+dynamic = ["version"]
+description = "Django database backend for libSQL and Turso"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Your Name", email = "your.email@example.com"},
+]
+keywords = ["django", "libsql", "turso", "sqlite", "database", "backend"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Web Environment", 
+    "Framework :: Django",
+    "Framework :: Django :: 4.2",
+    "Framework :: Django :: 5.0",
+    "Framework :: Django :: 5.1",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11", 
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Database",
+    "Topic :: Internet :: WWW/HTTP",
+]
+requires-python = ">=3.10"
+dependencies = [
+    "django>=5.2",
+    "libsql>=0.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-django>=4.5",
+    "pytest-cov>=4.0",
+    "black>=23.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0",
+]
+testing = [
+    "pytest>=7.0",
+    "pytest-django>=4.5", 
+    "pytest-cov>=4.0",
+    "pytest-xdist>=3.0",
+]
+
+[project.urls]
+Documentation = "https://django-libsql.readthedocs.io"
+Repository = "https://github.com/yourusername/django-libsql"
+Issues = "https://github.com/yourusername/django-libsql/issues"
+
+[tool.hatch.version]
+path = "src/django_libsql/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/django_libsql"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "tests.settings"
+python_files = ["test_*.py"]
+addopts = ["--strict-markers", "--tb=short"]
+testpaths = ["tests"]
+
+[tool.black]
+line-length = 88
+target-version = ['py310']
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+select = ["E", "W", "F", "I", "B", "C4", "UP"]
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
