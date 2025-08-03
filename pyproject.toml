@@ -9,7 +9,7 @@ description = "Django database backend for libSQL and Turso"
 readme = "README.md"
 license = {file = "LICENSE"}
 authors = [
-    {name = "Your Name", email = "your.email@example.com"},
+    {name = "outcastgeek", email = "outcastgeek+git@gmail.com"},
 ]
 keywords = ["django", "libsql", "turso", "sqlite", "database", "backend"]
 classifiers = [
@@ -19,6 +19,7 @@ classifiers = [
     "Framework :: Django :: 4.2",
     "Framework :: Django :: 5.0",
     "Framework :: Django :: 5.1",
+    "Framework :: Django :: 5.2",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
@@ -27,6 +28,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11", 
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Database",
     "Topic :: Internet :: WWW/HTTP",
 ]
@@ -34,6 +36,12 @@ requires-python = ">=3.10"
 dependencies = [
     "django>=5.2",
     "libsql>=0.1",
+]
+
+[dependency-groups]
+dev = [
+    "django-libsql-examples",
+    "lorem>=0.1.1",
 ]
 
 [project.optional-dependencies]
@@ -51,18 +59,41 @@ testing = [
     "pytest-cov>=4.0",
     "pytest-xdist>=3.0",
 ]
+examples = [
+    "django-libsql-examples",  # Include the examples package
+    "lorem>=0.1.1",  # For generating sample text in blog example
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.0",
+    "pytest-django>=4.5",
+    "pytest-cov>=4.0",
+    "black>=23.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0",
+]
 
 [project.urls]
 Documentation = "https://django-libsql.readthedocs.io"
 Repository = "https://github.com/yourusername/django-libsql"
 Issues = "https://github.com/yourusername/django-libsql/issues"
 
+[tool.uv.workspace]
+members = ["examples"]
+
+[tool.uv.sources]
+django-libsql-examples = { workspace = true }
+
 [tool.hatch.version]
 path = "src/django_libsql/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/django_libsql"]
+exclude = ["examples/"]
 
+[tool.hatch.build.targets.sdist]
+exclude = ["examples/"]
 
 [tool.black]
 line-length = 88
@@ -71,6 +102,8 @@ target-version = ['py310']
 [tool.ruff]
 line-length = 88
 target-version = "py310"
+
+[tool.ruff.lint]
 select = ["E", "W", "F", "I", "B", "C4", "UP"]
 
 [tool.pyright]

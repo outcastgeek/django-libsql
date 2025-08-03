@@ -2,6 +2,12 @@ version = 1
 revision = 3
 requires-python = ">=3.10"
 
+[manifest]
+members = [
+    "django-libsql",
+    "django-libsql-examples",
+]
+
 [[package]]
 name = "asgiref"
 version = "3.9.1"
@@ -190,6 +196,10 @@ dev = [
     { name = "pytest-django" },
     { name = "ruff" },
 ]
+examples = [
+    { name = "django-libsql-examples" },
+    { name = "lorem" },
+]
 testing = [
     { name = "pytest" },
     { name = "pytest-cov" },
@@ -197,11 +207,25 @@ testing = [
     { name = "pytest-xdist" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "black" },
+    { name = "django-libsql-examples" },
+    { name = "lorem" },
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-django" },
+    { name = "ruff" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "black", marker = "extra == 'dev'", specifier = ">=23.0" },
     { name = "django", specifier = ">=5.2" },
+    { name = "django-libsql-examples", marker = "extra == 'examples'", editable = "examples" },
     { name = "libsql", specifier = ">=0.1" },
+    { name = "lorem", marker = "extra == 'examples'", specifier = ">=0.1.1" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "pytest", marker = "extra == 'testing'", specifier = ">=7.0" },
@@ -212,7 +236,58 @@ requires-dist = [
     { name = "pytest-xdist", marker = "extra == 'testing'", specifier = ">=3.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]
-provides-extras = ["dev", "testing"]
+provides-extras = ["dev", "examples", "testing"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "black", specifier = ">=23.0" },
+    { name = "django-libsql-examples", editable = "examples" },
+    { name = "lorem", specifier = ">=0.1.1" },
+    { name = "mypy", specifier = ">=1.0" },
+    { name = "pytest", specifier = ">=7.0" },
+    { name = "pytest-cov", specifier = ">=4.0" },
+    { name = "pytest-django", specifier = ">=4.5" },
+    { name = "ruff", specifier = ">=0.1.0" },
+]
+
+[[package]]
+name = "django-libsql-examples"
+version = "0.1.0"
+source = { editable = "examples" }
+dependencies = [
+    { name = "django" },
+    { name = "django-libsql" },
+    { name = "lorem" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "black" },
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-django" },
+    { name = "pytest-xdist" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "django", specifier = ">=5.2" },
+    { name = "django-libsql", editable = "." },
+    { name = "lorem", specifier = ">=0.1.1" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "black", specifier = ">=25.1.0" },
+    { name = "mypy", specifier = ">=1.17.1" },
+    { name = "pytest", specifier = ">=8.4.1" },
+    { name = "pytest-cov", specifier = ">=6.2.1" },
+    { name = "pytest-django", specifier = ">=4.11.1" },
+    { name = "pytest-xdist", specifier = ">=3.8.0" },
+    { name = "ruff", specifier = ">=0.12.7" },
+]
 
 [[package]]
 name = "exceptiongroup"
@@ -269,6 +344,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/ff/9e/3457d2b4a487133a5da67db6f172611640c110bfe75788e06068c6b23445/libsql-0.1.8-cp314-cp314-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c5aeeeee85fa2e72f6a695dc4ba96bcb7f865e979421a6bad1720eb721b55318", size = 5332880, upload-time = "2025-07-29T10:37:58.999Z" },
     { url = "https://files.pythonhosted.org/packages/29/b1/2593dc3a29d20e675f5fe26a7ab4dab4d1b6a32d64a3dfeae2e1e49aa8f3/libsql-0.1.8-pp310-pypy310_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:2afeabb0df7c9ada77f007f2d6fa1fbc37caf1af2e20c30a45e806e5dbb2fab6", size = 5330758, upload-time = "2025-07-29T10:38:04.998Z" },
     { url = "https://files.pythonhosted.org/packages/fb/07/7ceda6d319b7c5854402890c25ed5ae48722924c5a270a0acb8c393f4f66/libsql-0.1.8-pp311-pypy311_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7a15ca69c5a17ad651a5ea9d694b893a8038071a095cbc20faec54566a645b38", size = 5330557, upload-time = "2025-07-29T10:38:06.332Z" },
+]
+
+[[package]]
+name = "lorem"
+version = "0.1.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/3a/ae/6a5d8faaec3bc847ae1999e760f76c7238cefd99452e040e4aea5f723738/lorem-0.1.1.tar.gz", hash = "sha256:785f4109a241fc2891e59705e85d065f6e6d3ed6ad91750a8cb54d4f3e59d934", size = 3913, upload-time = "2016-06-18T21:15:54.335Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/90/7e/963834e2a400cefdf72af1e10a106c9e849cb4c149cc7b394cb1492effec/lorem-0.1.1-py3-none-any.whl", hash = "sha256:c9c2914b5a772022417c398bd74b7bbd712e73ff029ba82720855e458f13ae42", size = 4999, upload-time = "2016-06-18T21:15:50.562Z" },
 ]
 
 [[package]]

@@ -10,7 +10,7 @@ from .features import DatabaseFeatures
 from .operations import DatabaseOperations
 
 # Regex to find %s placeholders
-FORMAT_QMARK_REGEX = re.compile(r'(?<!%)%s')
+FORMAT_QMARK_REGEX = re.compile(r"(?<!%)%s")
 
 # No-GIL connection handling
 CONNECTION_RETRY_COUNT = 3
@@ -21,16 +21,17 @@ class LibSQLCursorWrapper:
     """
     A wrapper for libSQL cursors to make them compatible with Django's expectations.
     """
+
     def __init__(self, cursor):
         self.cursor = cursor
-    
+
     def execute(self, query, params=None):
         from django.db import IntegrityError, OperationalError
-        
+
         try:
             if params is None:
                 return self.cursor.execute(query)
-            
+
             # Convert Django's %s placeholders to ? for SQLite/libSQL
             if isinstance(params, (list, tuple)):
                 # Convert from "format" style (%s) to "qmark" style (?)
@@ -51,7 +52,7 @@ class LibSQLCursorWrapper:
             elif "stream not found" in error_str:
                 raise OperationalError(f"Database connection lost: {error_str}")
             raise
-    
+
     def executemany(self, query, param_list):
         # Convert query format for executemany as well
         if param_list:
@@ -65,10 +66,10 @@ class LibSQLCursorWrapper:
                     # Positional parameters
                     query = FORMAT_QMARK_REGEX.sub("?", query).replace("%%", "%")
         return self.cursor.executemany(query, param_list)
-    
+
     def fetchone(self):
         from django.db import IntegrityError
-        
+
         try:
             return self.cursor.fetchone()
         except ValueError as e:
@@ -76,37 +77,37 @@ class LibSQLCursorWrapper:
             if "SQLITE_CONSTRAINT" in str(e):
                 raise IntegrityError(str(e))
             raise
-    
+
     def fetchmany(self, size=None):
         if size is None:
             return self.cursor.fetchmany()
         return self.cursor.fetchmany(size)
-    
+
     def fetchall(self):
         return self.cursor.fetchall()
-    
+
     def close(self):
         return self.cursor.close()
-    
+
     @property
     def rowcount(self):
         return self.cursor.rowcount
-    
+
     @property
     def lastrowid(self):
         return self.cursor.lastrowid
-    
+
     @property
     def description(self):
         return self.cursor.description
-    
+
     def __enter__(self):
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
         return False
-    
+
     def __iter__(self):
         return iter(self.fetchall())
 
@@ -123,6 +124,7 @@ class DatabaseWrapper(sqlite_base.DatabaseWrapper):
       SYNC_INTERVAL = optional auto-sync seconds
       ENCRYPTION_KEY = optional key for encrypted local replica
     """
+
     vendor = "libsql"
     display_name = "libSQL (Turso)"
     creation_class = DatabaseCreation
@@ -138,42 +140,48 @@ class DatabaseWrapper(sqlite_base.DatabaseWrapper):
         # For local-only, set NAME to a file and omit SYNC_URL/AUTH_TOKEN.
         # For remote-only, you can set NAME to the remote URL and omit SYNC_URL.
         name = conn_params.get("NAME") or ":memory:"
-        
+
         # CRITICAL FIX: During tests, Django passes ":memory:" but we want to use TEST['NAME']
         # if it's configured to point to a Turso database
         if name == ":memory:":
-            test_name = self.settings_dict.get('TEST', {}).get('NAME')
+            test_name = self.settings_dict.get("TEST", {}).get("NAME")
             if test_name and (
-                test_name.startswith('libsql://') or 
-                test_name.startswith('wss://') or 
-                test_name.startswith('https://')
+                test_name.startswith("libsql://")
+                or test_name.startswith("wss://")
+                or test_name.startswith("https://")
             ):
                 name = test_name
-                print(f"🔧 Overriding test :memory: with configured TEST['NAME']: {name}")
-        
+                print(
+                    f"🔧 Overriding test :memory: with configured TEST['NAME']: {name}"
+                )
+
         # Check if this is an in-memory database (NOT including Turso URLs)
         is_memory_db = (
-            name == ":memory:" or 
-            name.startswith("file:memory") or 
-            name.startswith("file::memory:") or
-            "mode=memory" in str(name)
+            name == ":memory:"
+            or name.startswith("file:memory")
+            or name.startswith("file::memory:")
+            or "mode=memory" in str(name)
         )
 
         # Pull libSQL/Turso options either from settings or env vars.
-        sync_url       = self.settings_dict.get("SYNC_URL") or os.getenv("TURSO_DATABASE_URL")
-        auth_token     = self.settings_dict.get("AUTH_TOKEN") or os.getenv("TURSO_AUTH_TOKEN")
-        sync_interval  = self.settings_dict.get("SYNC_INTERVAL")
+        sync_url = self.settings_dict.get("SYNC_URL") or os.getenv("TURSO_DATABASE_URL")
+        auth_token = self.settings_dict.get("AUTH_TOKEN") or os.getenv(
+            "TURSO_AUTH_TOKEN"
+        )
+        sync_interval = self.settings_dict.get("SYNC_INTERVAL")
         encryption_key = self.settings_dict.get("ENCRYPTION_KEY")
 
         kwargs = {}
-        
+
         # For in-memory databases (but NOT Turso URLs)
         if is_memory_db:
             # Create a pure in-memory database without sync
             conn = libsql.connect(":memory:")
         # If NAME looks like a remote DSN (libsql://, wss://, https://), call connect(name, ...).
         # Otherwise, treat NAME as the local replica path and pass sync_* options.
-        elif isinstance(name, str) and name.startswith(("libsql://", "wss://", "ws://", "https://", "http://")):
+        elif isinstance(name, str) and name.startswith(
+            ("libsql://", "wss://", "ws://", "https://", "http://")
+        ):
             if auth_token:
                 kwargs["auth_token"] = auth_token
             # IMPORTANT: For remote Turso connections, we should also support sync_interval
@@ -194,9 +202,9 @@ class DatabaseWrapper(sqlite_base.DatabaseWrapper):
 
         # Force autocommit mode for libSQL
         conn.autocommit = True
-        
+
         return conn
-    
+
     def _set_autocommit(self, autocommit):
         """Override to handle libSQL's connection object differences"""
         # libSQL uses autocommit attribute directly
@@ -208,21 +216,21 @@ class DatabaseWrapper(sqlite_base.DatabaseWrapper):
                     self.connection.commit()
                 except Exception:
                     pass
-    
+
     def create_cursor(self, name=None):
         """Override to handle libSQL's cursor creation"""
         # For new cursors, ensure we sync if available
-        if hasattr(self.connection, 'sync'):
+        if hasattr(self.connection, "sync"):
             try:
                 self.connection.sync()
             except Exception:
                 pass  # Sync may not be available in all modes
-        
+
         cursor = self.connection.cursor()
-        
+
         # Use our custom wrapper for libSQL cursors
         return LibSQLCursorWrapper(cursor)
-    
+
     def disable_constraint_checking(self):
         """
         Disable foreign key constraint checking.
@@ -232,14 +240,14 @@ class DatabaseWrapper(sqlite_base.DatabaseWrapper):
             cursor.execute("PRAGMA foreign_keys = OFF")
         self.needs_rollback = False
         return True
-    
+
     def enable_constraint_checking(self):
         """
         Enable foreign key constraint checking.
         """
         with self.cursor() as cursor:
             cursor.execute("PRAGMA foreign_keys = ON")
-    
+
     def _start_transaction_under_autocommit(self):
         """
         Override transaction handling for libSQL.
@@ -248,14 +256,14 @@ class DatabaseWrapper(sqlite_base.DatabaseWrapper):
         # Start a transaction explicitly
         with self.cursor() as cursor:
             cursor.execute("BEGIN")
-    
+
     def is_in_memory_db(self):
         """
         Check if this is an in-memory database.
         With libSQL embedded replicas, we have a local file that syncs.
         """
-        return self.settings_dict['NAME'] == ':memory:'
-    
+        return self.settings_dict["NAME"] == ":memory:"
+
     def _commit(self):
         """Override commit to ensure it works with libSQL."""
         if self.connection is not None:
@@ -269,13 +277,13 @@ class DatabaseWrapper(sqlite_base.DatabaseWrapper):
                         raise
                     else:
                         raise
-    
+
     def ensure_connection(self):
         """Ensure connection is established and synced."""
         super().ensure_connection()
-        
+
         # For libSQL, ensure we're synced after connection
-        if self.connection is not None and hasattr(self.connection, 'sync'):
+        if self.connection is not None and hasattr(self.connection, "sync"):
             try:
                 self.connection.sync()
             except Exception:

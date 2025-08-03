@@ -54,6 +54,66 @@ pip install django-libsql
    python manage.py migrate
    ```
 
+## Examples
+
+This project includes comprehensive example applications demonstrating django-libsql capabilities. The examples are managed as a separate UV workspace member and are not included in the distributed package.
+
+### Quick Start with Examples
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd django-libsql
+
+# Set up environment variables
+export TURSO_DATABASE_URL="libsql://your-database.turso.io"
+export TURSO_AUTH_TOKEN="your-turso-auth-token"
+
+# Install workspace dependencies
+uv sync
+
+# Setup all examples (migrations + sample data)
+uv run examples-setup
+
+# Run individual examples
+uv run basic-server      # Todo app on port 8000
+uv run blog-server       # Blog app on port 8001
+uv run processor-server  # Data processor on port 8002
+uv run analytics-server  # Analytics dashboard on port 8003
+
+# Run GIL benchmark
+uv run gil-benchmark
+```
+
+### Example Applications
+
+- **Basic App**: Todo list demonstrating CRUD operations
+- **Blog App**: Complex queries, relationships, and search
+- **Data Processor**: Concurrent processing with threading
+- **Real-time Analytics**: Dashboard with Turso sync
+- **GIL Benchmark**: Performance testing for Python 3.13+ no-GIL
+
+See [`examples/README.md`](examples/README.md) for detailed documentation.
+
+### Workspace Architecture
+
+The project uses **UV's workspace feature** for clean separation:
+
+```
+django-libsql/
+├── pyproject.toml          # Main library (distributed)
+├── src/django_libsql/      # Core library code
+└── examples/               # Examples workspace (not distributed)
+    ├── pyproject.toml      # Examples package with UV scripts
+    └── [example apps...]   # Individual Django applications
+```
+
+**Benefits:**
+- ✅ Developers get full examples with `uv sync`
+- ✅ End users get clean library installs without example bloat
+- ✅ Examples always test against the latest library code
+- ✅ CI/CD can test examples automatically
+
 ## Documentation
 
 For detailed documentation, visit: https://django-libsql.readthedocs.io

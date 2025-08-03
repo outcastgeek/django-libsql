@@ -11,10 +11,7 @@ DATABASES = {
         "AUTH_TOKEN": os.environ.get("TURSO_AUTH_TOKEN"),
         "SYNC_INTERVAL": float(os.environ.get("TURSO_SYNC_INTERVAL", "0.1")),
         "OPTIONS": {
-            "init_command": (
-                "PRAGMA foreign_keys=ON; "
-                "PRAGMA busy_timeout=5000;"
-            ),
+            "init_command": ("PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;"),
         },
         "TEST": {
             "NAME": os.environ.get("TURSO_DATABASE_URL"),

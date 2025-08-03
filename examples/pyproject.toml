@@ -1,0 +1,58 @@
+[project]
+name = "django-libsql-examples"
+version = "0.1.0"
+description = "Example applications for django-libsql"
+requires-python = ">=3.10"
+dependencies = [
+    "django-libsql",
+    "django>=5.2",
+    "lorem>=0.1.1",
+]
+
+[tool.uv.sources]
+django-libsql = { workspace = true }
+
+[project.scripts]
+# Basic app commands
+basic-migrate = "run_example:basic_migrate"  
+basic-server = "run_example:basic_server"
+basic-sample = "run_example:basic_sample"
+
+# Blog app commands
+blog-migrate = "run_example:blog_migrate"
+blog-server = "run_example:blog_server"
+blog-sample = "run_example:blog_sample"
+
+# Data processor commands
+processor-migrate = "run_example:processor_migrate"
+processor-server = "run_example:processor_server"
+processor-sample = "run_example:processor_sample"
+
+# Analytics commands
+analytics-migrate = "run_example:analytics_migrate"
+analytics-server = "run_example:analytics_server"
+analytics-sample = "run_example:analytics_sample"
+
+# GIL benchmark
+gil-benchmark = "run_example:gil_benchmark"
+
+# Batch commands
+examples-setup = "run_example:setup_all"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "black>=25.1.0",
+    "mypy>=1.17.1",
+    "pytest>=8.4.1",
+    "pytest-cov>=6.2.1",
+    "pytest-django>=4.11.1",
+    "pytest-xdist>=3.8.0",
+    "ruff>=0.12.7",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]

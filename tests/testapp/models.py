@@ -31,10 +31,10 @@ class Book(models.Model):
 
     class Meta:
         app_label = "testapp"
-        ordering = ['-published_date']
+        ordering = ["-published_date"]
         indexes = [
-            models.Index(fields=['isbn']),
-            models.Index(fields=['author', 'title']),
+            models.Index(fields=["isbn"]),
+            models.Index(fields=["author", "title"]),
         ]
 
     def __str__(self):
@@ -42,7 +42,7 @@ class Book(models.Model):
 
 
 class Review(models.Model):
-    book = models.ForeignKey(Book, on_delete=models.CASCADE, related_name='reviews')
+    book = models.ForeignKey(Book, on_delete=models.CASCADE, related_name="reviews")
     reviewer_name = models.CharField(max_length=100)
     rating = models.IntegerField(choices=[(i, i) for i in range(1, 6)])
     comment = models.TextField()
@@ -50,8 +50,8 @@ class Review(models.Model):
 
     class Meta:
         app_label = "testapp"
-        ordering = ['-created_at']
-        unique_together = ['book', 'reviewer_name']
+        ordering = ["-created_at"]
+        unique_together = ["book", "reviewer_name"]
 
     def __str__(self):
         return f"{self.reviewer_name}'s review of {self.book.title}"
