@@ -6,6 +6,7 @@ from django.core.paginator import Paginator
 from django.utils import timezone
 from django.views.decorators.cache import cache_page
 from django.http import JsonResponse
+from django.db import OperationalError
 from .models import Post, Category, Tag, Comment, PostView
 
 

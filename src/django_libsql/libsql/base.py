@@ -48,8 +48,8 @@ class LibSQLCursorWrapper:
             # Convert libSQL constraint errors to Django IntegrityError
             if "SQLITE_CONSTRAINT" in error_str:
                 raise IntegrityError(error_str)
-            # Handle connection stream errors (common with no-GIL)
-            elif "stream not found" in error_str:
+            # Handle connection stream errors (common with no-GIL and high concurrency)
+            elif "stream not found" in error_str or "Hrana:" in error_str:
                 raise OperationalError(f"Database connection lost: {error_str}")
             raise
 
@@ -190,14 +190,16 @@ class DatabaseWrapper(sqlite_base.DatabaseWrapper):
                 kwargs["sync_interval"] = float(sync_interval)
             conn = libsql.connect(str(name), **kwargs)
         else:
+            # This is the embedded replica case - local file with sync_url
             if sync_url:
                 kwargs["sync_url"] = sync_url
             if auth_token:
                 kwargs["auth_token"] = auth_token
             if sync_interval is not None:
-                kwargs["sync_interval"] = int(sync_interval)
+                kwargs["sync_interval"] = float(sync_interval)
             if encryption_key:
                 kwargs["encryption_key"] = encryption_key
+            
             conn = libsql.connect(str(name), **kwargs)
 
         # Force autocommit mode for libSQL
@@ -219,13 +221,8 @@ class DatabaseWrapper(sqlite_base.DatabaseWrapper):
 
     def create_cursor(self, name=None):
         """Override to handle libSQL's cursor creation"""
-        # For new cursors, ensure we sync if available
-        if hasattr(self.connection, "sync"):
-            try:
-                self.connection.sync()
-            except Exception:
-                pass  # Sync may not be available in all modes
-
+        # Note: For embedded replicas with SYNC_INTERVAL, libSQL handles
+        # automatic syncing internally. We don't need to manually sync here.
         cursor = self.connection.cursor()
 
         # Use our custom wrapper for libSQL cursors
@@ -279,12 +276,48 @@ class DatabaseWrapper(sqlite_base.DatabaseWrapper):
                         raise
 
     def ensure_connection(self):
-        """Ensure connection is established and synced."""
-        super().ensure_connection()
+        """Ensure connection is established."""
+        if self.connection is None:
+            with self.wrap_database_errors:
+                self.connect()
 
-        # For libSQL, ensure we're synced after connection
-        if self.connection is not None and hasattr(self.connection, "sync"):
-            try:
-                self.connection.sync()
-            except Exception:
-                pass
+    def sync(self):
+        """
+        Manually sync the embedded replica with the remote database.
+        This is only available for embedded replica connections.
+        
+        Returns:
+            bool: True if sync succeeded, False otherwise
+        
+        Raises:
+            OperationalError: If sync is not available (e.g., for pure remote connections)
+        """
+        from django.db import OperationalError
+        
+        self.ensure_connection()
+        
+        if self.connection is None:
+            raise OperationalError("No database connection available")
+            
+        if not hasattr(self.connection, "sync"):
+            raise OperationalError(
+                "Manual sync is only available for embedded replica connections. "
+                "Ensure you have configured both NAME (local file) and SYNC_URL."
+            )
+        
+        try:
+            self.connection.sync()
+            return True
+        except Exception as e:
+            error_msg = str(e)
+            if "not supported in databases opened in Remote mode" in error_msg:
+                raise OperationalError(
+                    "Manual sync is only available for embedded replica connections. "
+                    "Ensure you have configured both NAME (local file) and SYNC_URL."
+                )
+            elif "not supported in databases opened in Memory mode" in error_msg:
+                raise OperationalError(
+                    "Manual sync is not available for in-memory databases. "
+                    "Ensure NAME points to a file path, not ':memory:'."
+                )
+            raise OperationalError(f"Failed to sync database: {error_msg}")

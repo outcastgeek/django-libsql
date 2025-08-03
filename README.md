@@ -1,14 +1,16 @@
-# Django libSQL Backend
+# Django LibSQL Backend
 
-A Django database backend for [libSQL](https://libsql.org/) and [Turso](https://turso.tech/).
+A Django database backend for [LibSQL](https://libsql.org/) and [Turso](https://turso.tech/).
 
 ## Features
 
 - Full Django ORM compatibility
-- Support for libSQL local and remote databases
+- Support for LibSQL local and remote databases
 - Turso edge database integration
 - Threading support with performance optimizations
-- Embedded replica support for low-latency reads
+- Embedded replica support for low-latency reads with background sync
+- No-GIL Python support for improved performance
+- Comprehensive test suite with automatic execution in all modes
 
 ## Installation
 
@@ -24,41 +26,75 @@ pip install django-libsql
    ```
 
 2. Configure your Django settings:
+
+   **For local SQLite databases:**
    ```python
    DATABASES = {
        'default': {
            'ENGINE': 'django_libsql.libsql',
-           'NAME': 'your-database-path-or-url',
-           'OPTIONS': {
-               'auth_token': 'your-auth-token-if-using-turso',
-           },
+           'NAME': '/path/to/your/database.db',
        }
    }
    ```
 
-3. For Turso databases:
+   **For Turso remote databases:**
    ```python
    DATABASES = {
        'default': {
            'ENGINE': 'django_libsql.libsql',
-           'NAME': 'libsql://your-database.turso.io',
-           'OPTIONS': {
-               'auth_token': 'your-turso-auth-token',
-           },
+           'NAME': os.environ.get('TURSO_DATABASE_URL'),  # libsql://your-database.turso.io
+           'AUTH_TOKEN': os.environ.get('TURSO_AUTH_TOKEN'),
+           'SYNC_INTERVAL': 0.1,  # Optional: auto-sync interval in seconds
        }
    }
    ```
 
-4. Run migrations:
+   **For embedded replicas (local file + remote sync):**
+   ```python
+   DATABASES = {
+       'default': {
+           'ENGINE': 'django_libsql.libsql',
+           'NAME': '/path/to/local/replica.db',  # Local file path
+           'SYNC_URL': os.environ.get('TURSO_DATABASE_URL'),  # Remote database URL
+           'AUTH_TOKEN': os.environ.get('TURSO_AUTH_TOKEN'),
+           'SYNC_INTERVAL': 1.0,  # Sync every second
+           'ENCRYPTION_KEY': os.environ.get('ENCRYPTION_KEY'),  # Optional
+       }
+   }
+   ```
+
+3. Run migrations:
    ```bash
    python manage.py migrate
    ```
 
-## Examples
+## Embedded Replicas
 
-This project includes comprehensive example applications demonstrating django-libsql capabilities. The examples are managed as a separate UV workspace member and are not included in the distributed package.
+Embedded replicas provide local SQLite performance with automatic background synchronization to your remote Turso database.
 
-### Quick Start with Examples
+### How It Works
+
+1. **Local SQLite file** for fast reads and writes
+2. **Background sync** to remote Turso database
+3. **Automatic sync** based on `SYNC_INTERVAL`
+4. **Manual sync** available via `connection.sync()`
+
+### Manual Sync
+
+```python
+from django.db import connection
+
+# Manually sync the embedded replica
+connection.sync()
+```
+
+**Note:** Manual sync is only available for embedded replica connections (not remote-only connections).
+
+## Development & Testing
+
+This project uses `uv` package manager and includes a comprehensive Makefile for all operations.
+
+### Quick Start
 
 ```bash
 # Clone the repository
@@ -69,20 +105,43 @@ cd django-libsql
 export TURSO_DATABASE_URL="libsql://your-database.turso.io"
 export TURSO_AUTH_TOKEN="your-turso-auth-token"
 
-# Install workspace dependencies
-uv sync
+# Install dependencies
+make install
 
-# Setup all examples (migrations + sample data)
-uv run examples-setup
+# Run ALL tests in ALL modes (NO MANUAL INTERVENTION!)
+make test-all
+
+# Run specific test suites
+make test-basic      # Basic functionality tests
+make test-embedded   # Embedded replica tests
+make test-examples   # Run all Django example apps
+```
+
+### Test Scenarios
+
+The test suite automatically runs in ALL required modes:
+1. **Regular Python (single-threaded)**
+2. **Python with Threads**
+3. **Python with Threads + No-GIL**
+4. **Python with Threads + No-GIL + Django ORM**
+
+## Examples
+
+This project includes comprehensive example applications demonstrating django-libsql capabilities.
+
+### Quick Start with Examples
+
+```bash
+# Setup all example apps (migrations + sample data)
+make setup-examples
 
 # Run individual examples
-uv run basic-server      # Todo app on port 8000
-uv run blog-server       # Blog app on port 8001
-uv run processor-server  # Data processor on port 8002
-uv run analytics-server  # Analytics dashboard on port 8003
-
-# Run GIL benchmark
-uv run gil-benchmark
+make run-basic-app      # Todo app on port 8000
+make run-blog-app       # Blog app on port 8001
+make run-data-processor # Data processor on port 8002
+make run-analytics      # Analytics dashboard on port 8003
+make run-sensors        # Embedded replica sensors
+make run-benchmark      # GIL benchmark
 ```
 
 ### Example Applications
@@ -91,6 +150,7 @@ uv run gil-benchmark
 - **Blog App**: Complex queries, relationships, and search
 - **Data Processor**: Concurrent processing with threading
 - **Real-time Analytics**: Dashboard with Turso sync
+- **Embedded Replica App**: Sensor simulation with local replica + remote sync
 - **GIL Benchmark**: Performance testing for Python 3.13+ no-GIL
 
 See [`examples/README.md`](examples/README.md) for detailed documentation.

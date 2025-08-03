@@ -1,14 +1,14 @@
 # Django libSQL Test Suite
 
-Comprehensive tests for the Django libSQL backend, including threading and performance tests.
+Comprehensive tests for the Django libSQL backend, including threading, embedded replicas, and performance tests.
 
 ## Test Structure
 
 ### Core Tests
 - `test_backend.py` - Core backend functionality tests
 - `test_threading.py` - Threading and concurrency tests
-- `test_quick_threading.py` - Quick performance test script
-- `run_gil_comparison.py` - GIL vs no-GIL comparison script
+- `test_embedded_replica.py` - Embedded replica functionality tests
+- `test_gil_comparison.py` - GIL vs no-GIL performance comparison
 
 ### Models
 The test suite uses the following models in `testapp/models.py`:
@@ -19,7 +19,30 @@ The test suite uses the following models in `testapp/models.py`:
 
 ## Running Tests
 
-### Using pytest (Recommended)
+### Using Makefile (Recommended - NO MANUAL INTERVENTION!)
+
+```bash
+# Run ALL tests in ALL modes automatically
+make test-all
+
+# Run specific test suites
+make test-basic      # Basic functionality tests
+make test-embedded   # Embedded replica tests (requires setup)
+make test-examples   # Test all Django example apps
+
+# Quick test
+make test           # Run quick basic tests
+```
+
+### Test Scenarios Covered
+
+The `make test-all` command automatically runs tests in ALL modes:
+1. **Regular Python (single-threaded)**
+2. **Python with Threads**
+3. **Python with Threads + No-GIL**
+4. **Python with Threads + No-GIL + Django ORM**
+
+### Using pytest Directly
 
 ```bash
 # Run all tests
@@ -37,12 +60,6 @@ pytest --cov=django_libsql --cov-report=html
 
 # Run in parallel
 pytest -n auto
-
-# Run with verbose output
-pytest -v
-
-# Show print statements during tests
-pytest -s
 ```
 
 ### Using Django Test Runner
@@ -80,14 +97,14 @@ python -m django test tests.test_backend --settings=tests.settings
 # Run all threading tests
 pytest test_threading.py -v
 
-# Run quick threading test
-python test_quick_threading.py
+# Run embedded replica tests
+pytest test_embedded_replica.py -v
 
-# Compare GIL vs no-GIL performance
-python run_gil_comparison.py
+# Run GIL comparison tests
+pytest test_gil_comparison.py -v
 
 # Run with GIL disabled (Python 3.13+)
-PYTHON_GIL=0 python -Xgil=0 test_quick_threading.py
+PYTHON_GIL=0 python -Xgil=0 -m pytest test_threading.py -v
 ```
 
 ### Test Database Management
@@ -148,9 +165,17 @@ PYTHON_GIL=0 python -Xgil=0 tests/test_quick_threading.py
 - Sync interval effectiveness
 - Performance comparisons
 
-### 3. Quick Performance Tests
-- `test_quick_threading.py` - Standalone script for quick benchmarks
-- `run_gil_comparison.py` - Automated GIL comparison
+### 3. Embedded Replica Tests (`test_embedded_replica.py`)
+- Single-threaded writes with sync
+- Multi-threaded concurrent operations
+- Batch processing with sync intervals
+- Complex queries on embedded replicas
+- Sync performance metrics
+
+### 4. GIL Comparison Tests (`test_gil_comparison.py`)
+- Sequential vs concurrent performance
+- GIL vs no-GIL benchmarks
+- Django ORM threading performance
 
 ## Key Features Tested
 
@@ -158,6 +183,7 @@ PYTHON_GIL=0 python -Xgil=0 tests/test_quick_threading.py
    - Remote database connections
    - Authentication token handling
    - Sync interval configuration
+   - Embedded replica support (local file + remote sync)
 
 2. **Django ORM Integration**
    - All field types (CharField, IntegerField, DecimalField, etc.)

@@ -1,6 +1,8 @@
 # Django-libSQL Examples
 
-This directory contains example Django applications demonstrating the capabilities of the django-libsql backend with Turso.
+This directory contains **full Django applications** demonstrating the capabilities of the django-libsql backend with Turso. All examples are proper Django apps with manage.py, URLs, views, templates, and management commands that run in ALL modes automatically.
+
+**NO ONE-OFF SCRIPTS! ALL EXAMPLES ARE FULL DJANGO APPS!**
 
 ## Example Applications
 
@@ -47,6 +49,26 @@ Real-time data analytics dashboard:
 - Real-time metrics calculation
 - Turso sync interval optimization
 
+### 6. Embedded Replica Sensors (`embedded_replica_app/`)
+IoT sensor simulation demonstrating embedded replicas:
+- **Full Django app with web dashboard**
+- Management command: `simulate_sensors` - runs in all modes
+- Management command: `test_all_modes` - automatic testing
+- Real-time sensor data visualization
+- Manual and automatic sync demonstration
+- Performance comparison across modes
+- Web UI at `/` with live updates
+
+### 7. GIL Benchmark App (`gil_benchmark/`)
+Comprehensive performance benchmarking Django app:
+- **Full Django app with results dashboard**
+- Management command: `run_benchmark` - customizable tests
+- Management command: `benchmark_all_modes` - automatic all-mode testing
+- Web UI showing benchmark results and comparisons
+- Admin interface for historical results
+- API endpoints for running benchmarks
+- Tests CRUD, read, write, and mixed operations
+
 ## Project Structure
 
 This project uses **UV's workspace feature** to manage the examples as a separate package that depends on the main library but is not distributed with it.
@@ -85,47 +107,59 @@ This means:
 
 ## Running the Examples
 
-### Using UV Workspace Commands
+### Quick Start - Run ALL Apps in ALL Modes Automatically
 
 ```bash
 # First, sync the workspace to install all dependencies
 uv sync
 
-# Setup all examples at once
-uv run examples-setup
+# Run ALL Django apps in ALL modes (NO MANUAL INTERVENTION!)
+make test-examples
 
-# Basic app commands
-uv run basic-migrate      # Run migrations
-uv run basic-server       # Start server on port 8000
-uv run basic-sample       # Create sample data
-
-# Blog app commands
-uv run blog-migrate       # Run migrations
-uv run blog-server        # Start server on port 8001
-uv run blog-sample        # Create sample data
-
-# Data processor commands
-uv run processor-migrate  # Run migrations
-uv run processor-server   # Start server on port 8002
-uv run processor-sample   # Create sample data
-
-# Analytics commands
-uv run analytics-migrate  # Run migrations
-uv run analytics-server   # Start server on port 8003
-uv run analytics-sample   # Create sample data
-
-# GIL Benchmark
-uv run gil-benchmark      # Run performance benchmark
+# This runs all apps in ALL REQUIRED MODES automatically:
+# - Remote + GIL
+# - Remote + No-GIL
+# - Embedded Replica + GIL
+# - Embedded Replica + No-GIL
 ```
 
-### Running the GIL Benchmark
+### Running Individual Django Apps
 
 ```bash
-# With GIL (default Python behavior)
-uv run gil-benchmark
+# Using Makefile commands
+make run-basic-app      # Todo app on port 8000
+make run-blog-app       # Blog app on port 8001
+make run-data-processor # Data processor on port 8002
+make run-analytics      # Analytics on port 8003
+make run-sensors        # Embedded replica sensors
+make run-benchmark      # Performance benchmark
 
-# Without GIL (Python 3.13+ only)
-PYTHON_GIL=0 uv run python -X gil=0 -m examples.gil_benchmark.benchmark
+# Or manually with Django manage.py
+cd examples/embedded_replica_app
+uv run python manage.py migrate
+uv run python manage.py simulate_sensors --duration 30
+uv run python manage.py test_all_modes  # Tests ALL modes automatically!
+
+cd examples/gil_benchmark
+uv run python manage.py migrate
+uv run python manage.py run_benchmark --test crud
+uv run python manage.py benchmark_all_modes  # Tests ALL modes automatically!
+```
+
+### Testing Specific Modes
+
+```bash
+# Test with No-GIL
+make test-django-app-nogil APP=embedded_replica_app CMD='simulate_sensors --threads 8'
+
+# Test with Embedded Replica
+make test-django-app-embedded APP=gil_benchmark CMD='run_benchmark --test mixed'
+
+# Manual No-GIL execution
+PYTHON_GIL=0 uv run python -X gil=0 examples/gil_benchmark/manage.py run_benchmark
+
+# Manual Embedded Replica execution
+USE_EMBEDDED_REPLICA=1 uv run python examples/embedded_replica_app/manage.py simulate_sensors
 ```
 
 ### Manual Execution

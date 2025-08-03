@@ -61,15 +61,16 @@ def reset_test_data(db):
             RelatedModel.objects.all().delete()
             TestModel.objects.all().delete()
 
-        # Force commit and sync for Turso
+        # Force commit
         connection.commit()
-        if hasattr(connection, "sync"):
-            connection.sync()
-
-        print(
-            f"Test data cleaned - Books: {Book.objects.count()}, Reviews: {Review.objects.count()}"
-        )
+        
+        # Only sync for embedded replicas (not remote-only connections)
+        if hasattr(connection, "sync") and connection.settings_dict.get("SYNC_URL"):
+            try:
+                connection.sync()
+            except Exception:
+                # Sync not available for this connection type
+                pass
     except Exception as e:
-        # Tables might not exist yet
-        print(f"Warning: Could not clean test data: {e}")
+        # Tables might not exist yet  
         pass

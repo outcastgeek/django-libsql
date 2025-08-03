@@ -5,6 +5,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.db.models import Count, Q
 from django.utils import timezone
+from django.db import OperationalError
 from .models import Todo, Category
 
 

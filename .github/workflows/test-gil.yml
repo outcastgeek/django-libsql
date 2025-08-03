@@ -25,10 +25,14 @@ jobs:
         python-version-file: ""
         allow-prereleases: true
     
-    - name: Install dependencies
+    - name: Install uv
       run: |
-        python -m pip install --upgrade pip
-        pip install -e ".[dev]"
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+    
+    - name: Install dependencies with uv
+      run: |
+        uv sync --all-extras
     
     - name: Set Turso environment variables
       env:
@@ -42,12 +46,12 @@ jobs:
     - name: Run tests with GIL ${{ matrix.gil-mode }}
       run: |
         if [ "${{ matrix.gil-mode }}" = "disabled" ]; then
-          PYTHON_GIL=0 python -X gil=0 -m pytest tests/ -v
+          PYTHON_GIL=0 uv run python -X gil=0 -m pytest tests/ -v
         else
-          python -m pytest tests/ -v
+          uv run python -m pytest tests/ -v
         fi
     
     - name: Run GIL comparison tests
       if: matrix.gil-mode == 'enabled'  # Run once
       run: |
-        python tests/test_runner_gil.py tests/test_gil_comparison.py
+        uv run python tests/test_runner_gil.py tests/test_gil_comparison.py

@@ -1,12 +1,20 @@
-"""Settings for GIL benchmark."""
+"""
+Settings for Embedded Replica Demo App.
+
+This app demonstrates libSQL embedded replicas with Django.
+"""
 
 import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 
-SECRET_KEY = "benchmark-secret-key-not-for-production"
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = 'django-embedded-replica-demo-key-not-for-production'
+
+# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
+
 ALLOWED_HOSTS = ['*']
 
 # Application definition
@@ -17,7 +25,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'benchmark_app',
+    'sensors',
 ]
 
 MIDDLEWARE = [
@@ -29,7 +37,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
 ]
 
-ROOT_URLCONF = 'gil_benchmark.urls'
+ROOT_URLCONF = 'embedded_replica_app.urls'
 
 TEMPLATES = [
     {
@@ -47,20 +55,28 @@ TEMPLATES = [
     },
 ]
 
+# Static files (CSS, JavaScript, Images)
+STATIC_URL = '/static/'
+
 # Database configuration
-# Use embedded replica if USE_EMBEDDED_REPLICA is set
+# Use embedded replica if USE_EMBEDDED_REPLICA is set, otherwise remote-only
 if os.environ.get('USE_EMBEDDED_REPLICA'):
     DATABASES = {
         'default': {
             'ENGINE': 'django_libsql.libsql',
-            'NAME': str(BASE_DIR / 'benchmark_replica.db'),
+            # Local database file
+            'NAME': str(BASE_DIR / 'local_replica.db'),
+            # Remote Turso database to sync with
             'SYNC_URL': os.environ.get('TURSO_DATABASE_URL'),
             'AUTH_TOKEN': os.environ.get('TURSO_AUTH_TOKEN'),
-            'SYNC_INTERVAL': 0.5,  # Sync every 0.5 seconds
+            # Sync every 1 second in background for demo
+            'SYNC_INTERVAL': 1.0,
+            # Optional encryption for local replica
+            'ENCRYPTION_KEY': os.environ.get('ENCRYPTION_KEY'),
         }
     }
 else:
-    # Remote-only mode
+    # Remote-only mode (direct Turso connection)
     DATABASES = {
         'default': {
             'ENGINE': 'django_libsql.libsql',
@@ -75,8 +91,20 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# Static files
-STATIC_URL = '/static/'
-
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Logging configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+}
