@@ -12,8 +12,9 @@ class DatabaseSchemaEditor(SQLiteSchemaEditor):
     def __enter__(self):
         """Ensure we're in autocommit mode for schema changes."""
         super().__enter__()
-        # Schema changes should always autocommit in libSQL
-        self.connection.set_autocommit(True)
+        # Don't change autocommit if we're in an atomic block
+        if not self.connection.in_atomic_block:
+            self.connection.set_autocommit(True)
         return self
     
     def __exit__(self, exc_type, exc_value, traceback):

@@ -63,11 +63,6 @@ path = "src/django_libsql/__init__.py"
 [tool.hatch.build.targets.wheel]
 packages = ["src/django_libsql"]
 
-[tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "tests.settings"
-python_files = ["test_*.py"]
-addopts = ["--strict-markers", "--tb=short"]
-testpaths = ["tests"]
 
 [tool.black]
 line-length = 88

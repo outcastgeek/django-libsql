@@ -1,0 +1,53 @@
+name: Test with GIL modes
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-gil-modes:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.13"]
+        gil-mode: ["enabled", "disabled"]
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        # Use free-threading build for Python 3.13+
+        python-version-file: ""
+        allow-prereleases: true
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[dev]"
+    
+    - name: Set Turso environment variables
+      env:
+        TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+        TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+      run: |
+        echo "TURSO_DATABASE_URL=$TURSO_DATABASE_URL" >> $GITHUB_ENV
+        echo "TURSO_AUTH_TOKEN=$TURSO_AUTH_TOKEN" >> $GITHUB_ENV
+        echo "TURSO_SYNC_INTERVAL=0.1" >> $GITHUB_ENV
+    
+    - name: Run tests with GIL ${{ matrix.gil-mode }}
+      run: |
+        if [ "${{ matrix.gil-mode }}" = "disabled" ]; then
+          PYTHON_GIL=0 python -X gil=0 -m pytest tests/ -v
+        else
+          python -m pytest tests/ -v
+        fi
+    
+    - name: Run GIL comparison tests
+      if: matrix.gil-mode == 'enabled'  # Run once
+      run: |
+        python tests/test_runner_gil.py tests/test_gil_comparison.py

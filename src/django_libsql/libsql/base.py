@@ -1,13 +1,20 @@
 from __future__ import annotations
 
 import re
+import time
+import threading
 from django.db.backends.sqlite3 import base as sqlite_base
 from .creation import DatabaseCreation
 from .schema import DatabaseSchemaEditor
 from .features import DatabaseFeatures
+from .operations import DatabaseOperations
 
 # Regex to find %s placeholders
 FORMAT_QMARK_REGEX = re.compile(r'(?<!%)%s')
+
+# No-GIL connection handling
+CONNECTION_RETRY_COUNT = 3
+CONNECTION_RETRY_DELAY = 0.1
 
 
 class LibSQLCursorWrapper:
@@ -18,20 +25,32 @@ class LibSQLCursorWrapper:
         self.cursor = cursor
     
     def execute(self, query, params=None):
-        if params is None:
-            return self.cursor.execute(query)
+        from django.db import IntegrityError, OperationalError
         
-        # Convert Django's %s placeholders to ? for SQLite/libSQL
-        if isinstance(params, (list, tuple)):
-            # Convert from "format" style (%s) to "qmark" style (?)
-            query = FORMAT_QMARK_REGEX.sub("?", query).replace("%%", "%")
-            return self.cursor.execute(query, params)
-        elif isinstance(params, dict):
-            # Convert from "pyformat" style (%(name)s) to "named" style (:name)
-            query = query % {name: f":{name}" for name in params}
-            return self.cursor.execute(query, params)
-        else:
-            return self.cursor.execute(query, params)
+        try:
+            if params is None:
+                return self.cursor.execute(query)
+            
+            # Convert Django's %s placeholders to ? for SQLite/libSQL
+            if isinstance(params, (list, tuple)):
+                # Convert from "format" style (%s) to "qmark" style (?)
+                query = FORMAT_QMARK_REGEX.sub("?", query).replace("%%", "%")
+                return self.cursor.execute(query, params)
+            elif isinstance(params, dict):
+                # Convert from "pyformat" style (%(name)s) to "named" style (:name)
+                query = query % {name: f":{name}" for name in params}
+                return self.cursor.execute(query, params)
+            else:
+                return self.cursor.execute(query, params)
+        except ValueError as e:
+            error_str = str(e)
+            # Convert libSQL constraint errors to Django IntegrityError
+            if "SQLITE_CONSTRAINT" in error_str:
+                raise IntegrityError(error_str)
+            # Handle connection stream errors (common with no-GIL)
+            elif "stream not found" in error_str:
+                raise OperationalError(f"Database connection lost: {error_str}")
+            raise
     
     def executemany(self, query, param_list):
         # Convert query format for executemany as well
@@ -48,7 +67,15 @@ class LibSQLCursorWrapper:
         return self.cursor.executemany(query, param_list)
     
     def fetchone(self):
-        return self.cursor.fetchone()
+        from django.db import IntegrityError
+        
+        try:
+            return self.cursor.fetchone()
+        except ValueError as e:
+            # Convert libSQL constraint errors to Django IntegrityError
+            if "SQLITE_CONSTRAINT" in str(e):
+                raise IntegrityError(str(e))
+            raise
     
     def fetchmany(self, size=None):
         if size is None:
@@ -101,6 +128,7 @@ class DatabaseWrapper(sqlite_base.DatabaseWrapper):
     creation_class = DatabaseCreation
     SchemaEditorClass = DatabaseSchemaEditor
     features_class = DatabaseFeatures
+    ops_class = DatabaseOperations
 
     def get_new_connection(self, conn_params):
         import os
@@ -200,7 +228,8 @@ class DatabaseWrapper(sqlite_base.DatabaseWrapper):
         Disable foreign key constraint checking.
         libSQL/Turso handles this differently than SQLite.
         """
-        # For libSQL, we'll track this state but not execute PRAGMA in transaction
+        with self.cursor() as cursor:
+            cursor.execute("PRAGMA foreign_keys = OFF")
         self.needs_rollback = False
         return True
     
@@ -208,16 +237,17 @@ class DatabaseWrapper(sqlite_base.DatabaseWrapper):
         """
         Enable foreign key constraint checking.
         """
-        # No-op for libSQL as constraints are managed differently
-        pass
+        with self.cursor() as cursor:
+            cursor.execute("PRAGMA foreign_keys = ON")
     
     def _start_transaction_under_autocommit(self):
         """
         Override transaction handling for libSQL.
         libSQL handles transactions differently than standard SQLite.
         """
-        # libSQL manages transactions automatically, so we don't need explicit BEGIN
-        pass
+        # Start a transaction explicitly
+        with self.cursor() as cursor:
+            cursor.execute("BEGIN")
     
     def is_in_memory_db(self):
         """
@@ -230,7 +260,15 @@ class DatabaseWrapper(sqlite_base.DatabaseWrapper):
         """Override commit to ensure it works with libSQL."""
         if self.connection is not None:
             with self.wrap_database_errors:
-                return self.connection.commit()
+                try:
+                    return self.connection.commit()
+                except ValueError as e:
+                    if "stream not found" in str(e):
+                        # Connection lost, can't commit
+                        self.close()
+                        raise
+                    else:
+                        raise
     
     def ensure_connection(self):
         """Ensure connection is established and synced."""

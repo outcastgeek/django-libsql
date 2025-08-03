@@ -8,17 +8,25 @@ class DatabaseFeatures(SQLiteFeatures):
     """
     libSQL database features.
     """
-    # libSQL requires explicit commits for DDL operations
-    can_rollback_ddl = False
+    # libSQL can rollback DDL in transactions
+    can_rollback_ddl = True
     
-    # libSQL works best with autocommit
+    # libSQL works with autocommit
     uses_autocommit = True
     
-    # libSQL supports transactions but handles them differently
+    # libSQL supports transactions
     supports_transactions = True
     
-    # Disable savepoints for Turso remote connections
-    uses_savepoints = False
+    # libSQL supports atomic operations
+    supports_atomic_references_rename = True
     
-    # libSQL/Turso doesn't support nested transactions the same way
+    # Disable savepoints for now - libSQL handles them differently
+    uses_savepoints = False
     supports_savepoints = False
+    
+    # libSQL handles transactions at the connection level
+    autocommits_when_autocommit_is_off = False
+    
+    # Force Django to close connections between requests/threads
+    # This is crucial for libSQL which isn't thread-safe
+    connection_persists_old_columns = False
