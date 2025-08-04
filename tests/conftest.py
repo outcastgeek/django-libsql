@@ -98,41 +98,15 @@ def _cleanup_test_database(verbose=True):
         # Disable foreign key constraints
         cursor.execute("PRAGMA foreign_keys = OFF")
         
-        # Get all tables
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        # Get all tables except SQLite internal tables
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
         all_tables = [t[0] for t in cursor.fetchall()]
         
-        # Test table prefixes
-        test_prefixes = [
-            'test_', 'stress_', 'books_', 'gil_', 'shared_', 
-            'testapp_', 'todo_', 'blog_', 'processor_', 
-            'analytics_', 'sensors_', 'event_', 'metric_'
-        ]
-        
-        # Drop test tables
+        # Drop ALL tables for complete cleanup
         tables_dropped = 0
         for table in all_tables:
-            if any(table.startswith(prefix) for prefix in test_prefixes) or \
-               ('_' in table and any(part.isdigit() for part in table.split('_'))):
-                try:
-                    cursor.execute(f"DROP TABLE IF EXISTS {table}")
-                    tables_dropped += 1
-                except Exception:
-                    pass
-        
-        # Clean migration records
-        test_apps = [
-            'books', 'testapp', 'todo', 'gil_test', 'processor', 
-            'analytics', 'blog', 'sensors'
-        ]
-        
-        migrations_deleted = 0
-        for app in test_apps:
-            try:
-                cursor.execute("DELETE FROM django_migrations WHERE app = ?", (app,))
-                migrations_deleted += cursor.rowcount
-            except Exception:
-                pass
+            cursor.execute(f"DROP TABLE IF EXISTS {table}")
+            tables_dropped += 1
         
         # Re-enable foreign key constraints
         cursor.execute("PRAGMA foreign_keys = ON")
@@ -140,9 +114,8 @@ def _cleanup_test_database(verbose=True):
         conn.close()
         
         if verbose:
-            print(f"✓ Dropped {tables_dropped} test tables")
-            print(f"✓ Deleted {migrations_deleted} test migration records")
-            print("✓ Database cleanup complete!")
+            print(f"✓ Dropped {tables_dropped} tables")
+            print("✓ Database cleanup complete - all tables removed!")
     
     except Exception as e:
         if verbose:

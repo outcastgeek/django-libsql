@@ -17,7 +17,8 @@ def cleanup():
 
 def signal_handler(sig, frame):
     """Handle shutdown signals."""
-    cleanup()
+    print("\n👋 Shutting down...")
+    cleanup()  # Clean AFTER running
     sys.exit(0)
 
 if __name__ == "__main__":
@@ -30,9 +31,9 @@ if __name__ == "__main__":
         django.setup()
         
         # Register cleanup handlers
-        atexit.register(cleanup)
-        signal.signal(signal.SIGINT, signal_handler)
-        signal.signal(signal.SIGTERM, signal_handler)
+        atexit.register(cleanup)  # Clean on normal exit
+        signal.signal(signal.SIGINT, signal_handler)  # Clean on Ctrl+C
+        signal.signal(signal.SIGTERM, signal_handler)  # Clean on termination
         
         # Clean before starting
         cleanup()

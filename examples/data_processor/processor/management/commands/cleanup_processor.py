@@ -1,43 +1,17 @@
 """
 Command to clean up processor app data from the database.
 """
-
+import sys
+from pathlib import Path
 from django.core.management.base import BaseCommand
-from django.db import connection
+
+# Add examples directory to path to import shared_cleanup
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
+from shared_cleanup import clean_database
 
 
 class Command(BaseCommand):
-    help = "Clean up all processor app tables and migration records"
+    help = "Clean up all database tables for a fresh start"
 
     def handle(self, *args, **options):
-        self.stdout.write("🧹 Cleaning up processor app data...")
-        
-        with connection.cursor() as cursor:
-            # Disable foreign key constraints for cleanup
-            cursor.execute("PRAGMA foreign_keys = OFF")
-            
-            # Drop all processor tables
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'processor_%'")
-            tables = cursor.fetchall()
-            
-            if tables:
-                for table in tables:
-                    cursor.execute(f"DROP TABLE IF EXISTS {table[0]}")
-                    self.stdout.write(f"   Dropped {table[0]}")
-            else:
-                self.stdout.write("   No processor tables found")
-            
-            # Clean migration records
-            try:
-                cursor.execute("DELETE FROM django_migrations WHERE app='processor'")
-                if cursor.rowcount > 0:
-                    self.stdout.write(f"   Deleted {cursor.rowcount} migration records")
-            except Exception:
-                pass
-            
-            # Re-enable foreign key constraints
-            cursor.execute("PRAGMA foreign_keys = ON")
-            
-            connection.commit()
-            
-        self.stdout.write(self.style.SUCCESS("✓ Cleanup complete!"))
+        clean_database(self.stdout, app_prefix='processor')
