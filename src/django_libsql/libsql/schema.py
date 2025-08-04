@@ -9,20 +9,21 @@ class DatabaseSchemaEditor(SQLiteSchemaEditor):
     """
     Custom schema editor that ensures changes are committed to Turso.
     """
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Override atomic_migration to False for Turso
+        # Turso doesn't support nested transactions well, and we need
+        # to ensure DDL statements are committed immediately.
+        self._atomic_migration = False
+    
+    @property
+    def atomic_migration(self):
+        """Disable atomic migrations for Turso."""
+        return self._atomic_migration
+    
+    @atomic_migration.setter
+    def atomic_migration(self, value):
+        """Always keep atomic_migration False for Turso."""
+        self._atomic_migration = False
 
-    def __enter__(self):
-        """Ensure we're in autocommit mode for schema changes."""
-        super().__enter__()
-        # Don't change autocommit if we're in an atomic block
-        if not self.connection.in_atomic_block:
-            self.connection.set_autocommit(True)
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        """Override to ensure migrations are committed."""
-        # Call parent's __exit__
-        super().__exit__(exc_type, exc_value, traceback)
-
-        # If no exception, force a commit to ensure changes persist in Turso
-        if exc_type is None:
-            self.connection.commit()

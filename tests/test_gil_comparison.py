@@ -52,10 +52,9 @@ class GILComparisonTest(TransactionTestCase):
         def worker_operations(worker_id):
             """Perform database operations in a thread."""
             # Ensure each thread has its own connection
-            connections.close_all()
+            # Django handles per-thread connections automatically
 
-            # Small delay for Turso sync
-            time.sleep(0.1)
+            # No artificial delays
 
             successful_ops = 0
             errors = []
@@ -297,8 +296,8 @@ class NoGILThreadingTest(TransactionTestCase):
 
         def intensive_operations(worker_id):
             """CPU-intensive operations mixed with database access."""
-            connections.close_all()
-            time.sleep(0.1)
+            # Django handles per-thread connections automatically
+            # No artificial delays
 
             results = []
             for i in range(operations_per_thread):

@@ -30,10 +30,10 @@ if __name__ == "__main__":
         import django
         django.setup()
         
-        # Register cleanup handlers
-        atexit.register(cleanup)  # Clean on normal exit
-        signal.signal(signal.SIGINT, signal_handler)  # Clean on Ctrl+C
-        signal.signal(signal.SIGTERM, signal_handler)  # Clean on termination
+        # Register signal handlers ONLY (no cleanup on exit for now)
+        # atexit.register(cleanup)  # DISABLED - Clean on normal exit
+        # signal.signal(signal.SIGINT, signal_handler)  # DISABLED - Clean on Ctrl+C
+        # signal.signal(signal.SIGTERM, signal_handler)  # DISABLED - Clean on termination
         
         # Clean before starting
         cleanup()
@@ -42,15 +42,22 @@ if __name__ == "__main__":
         print("\n📦 Running migrations...")
         call_command('migrate', '--noinput')
         
+        # Force a commit after migrations
+        from django.db import connection
+        connection.commit()
+        
         # Create sample data
         print("\n📝 Creating sample data...")
         try:
             call_command('create_sample_data')
         except Exception as e:
             print(f"Sample data creation failed: {e}")
+            
+        # Force another commit after data creation
+        connection.commit()
     
     # Start server (this will run on both main and reload)
     print("\n🚀 Starting server...")
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "settings")
     from django.core.management import execute_from_command_line
-    execute_from_command_line(['manage.py', 'runserver', '8000'])
+    execute_from_command_line(['manage.py', 'runserver', '--noreload', '8000'])

@@ -133,7 +133,7 @@ class EmbeddedReplicaTestBase:
         """Test concurrent read/write operations."""
         results = {
             'scenario': 'concurrent_reads_writes',
-            'duration_seconds': 5,
+            'target_operations': 100,  # Changed from duration-based to count-based
             'start_time': time.time()
         }
         
@@ -144,24 +144,25 @@ class EmbeddedReplicaTestBase:
         
         def writer():
             nonlocal write_count
-            while not stop_event.is_set():
+            while not stop_event.is_set() and write_count < 50:  # Stop after 50 writes
                 try:
                     TestModel.objects.create(
                         name=f"concurrent_{write_count}",
                         value=write_count
                     )
                     write_count += 1
-                    time.sleep(0.01)
+                    # No artificial delays
                 except Exception as e:
                     errors.append(f"Write error: {e}")
+            stop_event.set()  # Signal reader to stop
         
         def reader():
             nonlocal read_count
-            while not stop_event.is_set():
+            while not stop_event.is_set() and read_count < 50:  # Stop after 50 reads
                 try:
                     count = TestModel.objects.filter(name__startswith='concurrent_').count()
                     read_count += 1
-                    time.sleep(0.01)
+                    # No artificial delays
                 except Exception as e:
                     errors.append(f"Read error: {e}")
         
@@ -172,8 +173,8 @@ class EmbeddedReplicaTestBase:
         writer_thread.start()
         reader_thread.start()
         
-        # Run for duration
-        time.sleep(5)
+        # Wait for threads to complete their operations
+        # No sleep - threads will stop when they hit their limits
         stop_event.set()
         
         writer_thread.join()
@@ -186,7 +187,7 @@ class EmbeddedReplicaTestBase:
         results['writes'] = write_count
         results['reads'] = read_count
         results['errors'] = errors
-        results['success'] = len(errors) == 0
+        results['success'] = len(errors) == 0 and write_count >= 50 and read_count >= 50
         
         return results
     
@@ -255,6 +256,7 @@ class EmbeddedReplicaTestBase:
         query_times = {}
         
         # Aggregation
+        from django.db import models
         start = time.time()
         stats = Book.objects.aggregate(
             avg_price=models.Avg('price'),
@@ -304,7 +306,7 @@ class TestEmbeddedReplicaAllModes(EmbeddedReplicaTestBase, TransactionTestCase):
         print("=" * 70)
         
         with self.settings(DATABASES={'default': self.get_embedded_config()}):
-            connections.close_all()
+            # Django handles per-thread connections automatically
             
             results = []
             
@@ -335,7 +337,7 @@ class TestEmbeddedReplicaAllModes(EmbeddedReplicaTestBase, TransactionTestCase):
         print("=" * 70)
         
         with self.settings(DATABASES={'default': self.get_embedded_config()}):
-            connections.close_all()
+            # Django handles per-thread connections automatically
             
             # Use ThreadPoolExecutor for better thread management
             with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:

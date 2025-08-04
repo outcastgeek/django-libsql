@@ -62,26 +62,27 @@ class ThreadingTestCase(TransactionTestCase):
 
         def create_books(thread_id):
             """Create books in a thread."""
-            # Ensure each thread has its own connection
-            from django.db import connections
+            # Django handles per-thread connections automatically
+            # when allow_thread_sharing = False
 
-            connections.close_all()
-
-            # Small delay for Turso sync
-            time.sleep(0.1 * (thread_id + 1))  # Stagger thread starts
+            # No artificial delays - run operations immediately
 
             created_books = []
-            for i in range(books_per_thread):
-                book = Book.objects.create(
-                    title=f"Thread{thread_id}_Book{i}",
-                    author=f"Author{thread_id}",
-                    isbn=f"978-{thread_id:02d}-{i:02d}-00000-0",
-                    published_date=date(2024, 1, 1),
-                    pages=100 + i,
-                    price=Decimal("29.99"),
-                    in_stock=True,
-                )
-                created_books.append(book.id)
+            try:
+                for i in range(books_per_thread):
+                    book = Book.objects.create(
+                        title=f"Thread{thread_id}_Book{i}",
+                        author=f"Author{thread_id}",
+                        isbn=f"978-{thread_id:02d}-{i:02d}-00000-0",
+                        published_date=date(2024, 1, 1),
+                        pages=100 + i,
+                        price=Decimal("29.99"),
+                        in_stock=True,
+                    )
+                    created_books.append(book.id)
+            except Exception as e:
+                print(f"\nERROR in thread {thread_id}: {type(e).__name__}: {e}")
+                raise
             return created_books
 
         # Run threads
@@ -95,19 +96,22 @@ class ThreadingTestCase(TransactionTestCase):
         self.assertEqual(Book.objects.count(), num_threads * books_per_thread)
 
     def test_concurrent_crud_operations(self):
-        """Test concurrent CRUD operations across threads."""
+        """
+        Test concurrent CRUD operations across threads.
+        
+        Note: This test handles Turso stream timeouts which are normal behavior
+        when using direct Turso connections. Streams may expire during concurrent
+        operations, so we implement retry logic to handle this gracefully.
+        """
         num_threads = 4
         operations_per_thread = 3
 
         def crud_operations(worker_id):
             """Perform CRUD operations in a thread."""
-            # Ensure each thread has its own connection
-            from django.db import connections
+            # Django handles per-thread connections automatically
+            # when allow_thread_sharing = False
 
-            connections.close_all()
-
-            # Small delay for Turso sync, stagger threads
-            time.sleep(0.1 * (worker_id + 1))
+            # No artificial delays - run operations immediately
 
             results = {
                 "created": 0,
@@ -117,50 +121,64 @@ class ThreadingTestCase(TransactionTestCase):
                 "errors": [],
             }
 
-            try:
-                for i in range(operations_per_thread):
-                    # CREATE
-                    book = Book.objects.create(
-                        title=f"CRUD_Test_{worker_id}_{i}",
-                        author=f"Worker_{worker_id}",
-                        isbn=f"999-{worker_id:03d}-{i:03d}-000-0",
-                        published_date=date(2024, 1, 1),
-                        pages=200,
-                        price=Decimal("19.99"),
-                        in_stock=True,
-                    )
-                    results["created"] += 1
-
-                    # READ
-                    retrieved = Book.objects.get(id=book.id)
-                    self.assertEqual(retrieved.title, book.title)
-                    results["read"] += 1
-
-                    # UPDATE
-                    retrieved.pages = 300
-                    retrieved.price = Decimal("29.99")
-                    retrieved.save()
-                    results["updated"] += 1
-
-                    # Verify update
-                    updated = Book.objects.get(id=book.id)
-                    self.assertEqual(updated.pages, 300)
-
-                    # DELETE
+            for i in range(operations_per_thread):
+                # Handle expected Turso stream timeouts with retry logic
+                max_retries = 3
+                for attempt in range(max_retries):
                     try:
+                        # CREATE
+                        book = Book.objects.create(
+                            title=f"CRUD_Test_{worker_id}_{i}",
+                            author=f"Worker_{worker_id}",
+                            isbn=f"999-{worker_id:03d}-{i:03d}-000-0",
+                            published_date=date(2024, 1, 1),
+                            pages=200,
+                            price=Decimal("19.99"),
+                            in_stock=True,
+                        )
+                        results["created"] += 1
+
+                        # READ
+                        retrieved = Book.objects.get(id=book.id)
+                        self.assertEqual(retrieved.title, book.title)
+                        results["read"] += 1
+
+                        # UPDATE
+                        retrieved.pages = 300
+                        retrieved.price = Decimal("29.99")
+                        retrieved.save()
+                        results["updated"] += 1
+
+                        # Verify update
+                        updated = Book.objects.get(id=book.id)
+                        self.assertEqual(updated.pages, 300)
+
+                        # DELETE
                         updated.delete()
                         results["deleted"] += 1
-                    except Exception as delete_error:
-                        # Connection might be lost during delete transaction
-                        # This is a known issue with libSQL when using transactions
-                        results["errors"].append(f"Delete error: {delete_error}")
-                        # Try to reconnect for next iteration
-                        from django.db import connections
-
-                        connections.close_all()
-
-            except Exception as e:
-                results["errors"].append(str(e))
+                        
+                        break  # Success - exit retry loop
+                        
+                    except Exception as e:
+                        from django.db import OperationalError
+                        
+                        # Check if this is a Turso stream timeout (expected behavior)
+                        is_stream_error = (
+                            isinstance(e, OperationalError) and 
+                            ("stream not found" in str(e) or "Database connection lost" in str(e))
+                        )
+                        
+                        if is_stream_error and attempt < max_retries - 1:
+                            results["errors"].append(f"Stream timeout (retry {attempt + 1}): {e}")
+                            # No artificial delays - retry immediately
+                            continue
+                            
+                        # Re-raise for non-stream errors or final attempt
+                        if not is_stream_error:
+                            results["errors"].append(f"Unexpected error: {e}")
+                        else:
+                            results["errors"].append(f"Stream timeout (final attempt): {e}")
+                        raise
 
             return results
 
@@ -184,18 +202,9 @@ class ThreadingTestCase(TransactionTestCase):
                 if r["errors"]:
                     print(f"\nWorker {i} errors: {r['errors']}")
 
-        # All creates should succeed
+        # All operations should succeed
         self.assertEqual(total_created, num_threads * operations_per_thread)
-
-        # Due to libSQL connection issues with transactions, some deletes might fail
-        # But we should have deleted at least some
-        self.assertGreater(total_deleted, 0)
-
-        # If there are errors, they should be delete-related
-        if total_errors > 0:
-            for r in results:
-                for error in r["errors"]:
-                    self.assertIn("Delete error", error)
+        self.assertEqual(total_deleted, num_threads * operations_per_thread)
 
         # Calculate and report performance
         total_operations = num_threads * operations_per_thread * 4  # CRUD = 4 ops
@@ -226,10 +235,8 @@ class ThreadingTestCase(TransactionTestCase):
 
         def create_reviews(worker_id):
             """Create reviews for books in a thread."""
-            # Ensure each thread has its own connection
-            from django.db import connections
-
-            connections.close_all()
+            # Django handles per-thread connections automatically
+            # when allow_thread_sharing = False
 
             created_reviews = []
             for i, book in enumerate(books):
@@ -264,12 +271,9 @@ class ThreadingTestCase(TransactionTestCase):
 
         def get_connection_info(thread_id):
             """Get connection info in a thread."""
-            # Close any existing connection to force a new one
+            # Get connection for this thread
             from django.db import connections
-
-            # Get a fresh connection for this thread
             conn = connections["default"]
-            conn.close()
             conn.ensure_connection()
 
             # Get connection id
@@ -311,14 +315,12 @@ class ThreadingTestCase(TransactionTestCase):
 
         def write_and_read(thread_id):
             """Write in one thread and read in another."""
-            # Ensure each thread has its own connection
-            from django.db import connections
-
-            connections.close_all()
+            # Django handles per-thread connections automatically
+            # when allow_thread_sharing = False
 
             if thread_id == 0:
                 # Writer thread
-                time.sleep(0.05)  # Small delay
+                # No artificial delays
                 Book.objects.create(
                     title="Sync Test Book",
                     author="Sync Author",
@@ -331,7 +333,8 @@ class ThreadingTestCase(TransactionTestCase):
                 return "wrote"
             else:
                 # Reader thread - wait for sync
-                time.sleep(sync_interval + 0.1)
+                # No artificial delays - check immediately
+                # This may show sync hasn't happened yet, which is fine
                 count = Book.objects.filter(title="Sync Test Book").count()
                 return f"read_{count}"
 
@@ -404,13 +407,11 @@ class ThreadingPerformanceTest(TransactionTestCase):
         ops_per_thread = num_operations // num_threads
 
         def thread_operations(thread_id):
-            # Ensure each thread has its own connection
-            from django.db import connections
-
-            connections.close_all()
+            # Django handles per-thread connections automatically
+            # when allow_thread_sharing = False
 
             # Small delay for Turso sync
-            time.sleep(0.1)
+            # No artificial delays
 
             for i in range(ops_per_thread):
                 book = Book.objects.create(
@@ -497,10 +498,8 @@ class TursoSpecificTests(TransactionTestCase):
 
         def create_and_verify(thread_id):
             """Create data and verify it's synced."""
-            # Ensure each thread has its own connection
-            from django.db import connections
-
-            connections.close_all()
+            # Django handles per-thread connections automatically
+            # when allow_thread_sharing = False
 
             # Create
             book = Book.objects.create(

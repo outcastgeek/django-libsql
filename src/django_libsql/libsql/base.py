@@ -12,6 +12,45 @@ from .operations import DatabaseOperations
 # Regex to find %s placeholders
 FORMAT_QMARK_REGEX = re.compile(r"(?<!%)%s")
 
+# Create a Database module that Django will use to recognize database exceptions
+class Database:
+    """Minimal Database module for libSQL compatibility."""
+    # Define the exceptions that Django should recognize as database errors
+    class Error(Exception):
+        pass
+    
+    class InterfaceError(Error):
+        pass
+    
+    class DatabaseError(Error):
+        pass
+    
+    class DataError(DatabaseError):
+        pass
+    
+    class OperationalError(DatabaseError):
+        pass
+    
+    class IntegrityError(DatabaseError):
+        pass
+    
+    class InternalError(DatabaseError):
+        pass
+    
+    class ProgrammingError(DatabaseError):
+        pass
+    
+    class NotSupportedError(DatabaseError):
+        pass
+    
+    # SQLite version info for Django compatibility
+    sqlite_version_info = (3, 39, 0)  # libSQL is based on SQLite 3.39+
+    version_info = (3, 39, 0)
+    
+    # Constants Django expects
+    PARSE_DECLTYPES = 1
+    PARSE_COLNAMES = 2
+
 # No-GIL connection handling
 CONNECTION_RETRY_COUNT = 3
 CONNECTION_RETRY_DELAY = 0.1
@@ -26,7 +65,7 @@ class LibSQLCursorWrapper:
         self.cursor = cursor
 
     def execute(self, query, params=None):
-        from django.db import IntegrityError, OperationalError
+        from django.db import IntegrityError
 
         try:
             if params is None:
@@ -48,9 +87,9 @@ class LibSQLCursorWrapper:
             # Convert libSQL constraint errors to Django IntegrityError
             if "SQLITE_CONSTRAINT" in error_str:
                 raise IntegrityError(error_str)
-            # Handle connection stream errors (common with no-GIL and high concurrency)
+            # Convert stream errors to OperationalError that Django recognizes
             elif "stream not found" in error_str or "Hrana:" in error_str:
-                raise OperationalError(f"Database connection lost: {error_str}")
+                raise Database.OperationalError(error_str) from e
             raise
 
     def executemany(self, query, param_list):
@@ -131,6 +170,13 @@ class DatabaseWrapper(sqlite_base.DatabaseWrapper):
     SchemaEditorClass = DatabaseSchemaEditor
     features_class = DatabaseFeatures
     ops_class = DatabaseOperations
+    
+    # Disable thread sharing - Turso/libSQL connections cannot be shared across threads
+    allow_thread_sharing = False
+    
+    # Set the Database module so Django recognizes our exceptions
+    Database = Database
+    
 
     def get_new_connection(self, conn_params):
         import os
@@ -139,7 +185,7 @@ class DatabaseWrapper(sqlite_base.DatabaseWrapper):
         # For embedded replicas, NAME is your local file (e.g. local.db).
         # For local-only, set NAME to a file and omit SYNC_URL/AUTH_TOKEN.
         # For remote-only, you can set NAME to the remote URL and omit SYNC_URL.
-        name = conn_params.get("NAME") or ":memory:"
+        name = conn_params.get("NAME") or self.settings_dict.get("NAME") or ":memory:"
 
         # CRITICAL FIX: During tests, Django passes ":memory:" but we want to use TEST['NAME']
         # if it's configured to point to a Turso database
@@ -151,9 +197,6 @@ class DatabaseWrapper(sqlite_base.DatabaseWrapper):
                 or test_name.startswith("https://")
             ):
                 name = test_name
-                print(
-                    f"🔧 Overriding test :memory: with configured TEST['NAME']: {name}"
-                )
 
         # Check if this is an in-memory database (NOT including Turso URLs)
         is_memory_db = (
@@ -202,22 +245,25 @@ class DatabaseWrapper(sqlite_base.DatabaseWrapper):
             
             conn = libsql.connect(str(name), **kwargs)
 
-        # Force autocommit mode for libSQL
-        conn.autocommit = True
-
         return conn
 
     def _set_autocommit(self, autocommit):
         """Override to handle libSQL's connection object differences"""
-        # libSQL uses autocommit attribute directly
-        if self.connection is not None:
-            self.connection.autocommit = autocommit
-            if autocommit:
-                # Ensure any pending transaction is committed
-                try:
-                    self.connection.commit()
-                except Exception:
-                    pass
+        # libSQL doesn't have isolation_level property like standard SQLite
+        pass
+
+    def _start_transaction_under_autocommit(self):
+        """
+        Override transaction handling for libSQL.
+        libSQL handles transactions differently than standard SQLite.
+        """
+        # Check if we're already in a transaction
+        if self.connection and hasattr(self.connection, 'in_transaction') and self.connection.in_transaction:
+            return  # Already in transaction, don't start another
+        # Start a transaction explicitly
+        cursor = self.create_cursor()
+        cursor.execute("BEGIN")
+        cursor.close()
 
     def create_cursor(self, name=None):
         """Override to handle libSQL's cursor creation"""
@@ -245,14 +291,6 @@ class DatabaseWrapper(sqlite_base.DatabaseWrapper):
         with self.cursor() as cursor:
             cursor.execute("PRAGMA foreign_keys = ON")
 
-    def _start_transaction_under_autocommit(self):
-        """
-        Override transaction handling for libSQL.
-        libSQL handles transactions differently than standard SQLite.
-        """
-        # Start a transaction explicitly
-        with self.cursor() as cursor:
-            cursor.execute("BEGIN")
 
     def is_in_memory_db(self):
         """
@@ -260,6 +298,8 @@ class DatabaseWrapper(sqlite_base.DatabaseWrapper):
         With libSQL embedded replicas, we have a local file that syncs.
         """
         return self.settings_dict["NAME"] == ":memory:"
+
+
 
     def _commit(self):
         """Override commit to ensure it works with libSQL."""
@@ -280,6 +320,36 @@ class DatabaseWrapper(sqlite_base.DatabaseWrapper):
         if self.connection is None:
             with self.wrap_database_errors:
                 self.connect()
+
+    def is_usable(self):
+        """Check if the database connection is usable."""
+        if self.connection is None:
+            return False
+        try:
+            # Test the connection
+            with self.create_cursor() as cursor:
+                cursor.execute("SELECT 1")
+                cursor.fetchone()
+            return True
+        except Exception:
+            # Connection is not usable
+            return False
+
+    def cursor(self):
+        """Override Django's cursor method to handle stream connection recovery."""
+        return super().cursor()
+
+    def close(self):
+        """Close the database connection."""
+        # Reset error state when closing
+        self.errors_occurred = False
+        super().close()
+    
+    def _close(self):
+        """Close the database connection."""
+        if self.connection is not None:
+            self.connection.close()
+            self.connection = None
 
     def sync(self):
         """

@@ -24,7 +24,7 @@ class Command(BaseCommand):
         def create_books(worker_id):
             """Create books in a thread."""
             # Ensure each thread has its own connection
-            connections.close_all()
+            # Django handles per-thread connections automatically
 
             try:
                 for i in range(3):
