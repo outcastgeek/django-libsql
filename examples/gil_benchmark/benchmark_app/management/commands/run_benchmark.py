@@ -52,7 +52,8 @@ class Command(BaseCommand):
         
         # Detect environment
         gil_status = self.get_gil_status()
-        is_embedded = hasattr(connection, 'sync')
+        # Check if using embedded replica by looking for SYNC_URL in settings
+        is_embedded = connection.settings_dict.get('SYNC_URL') is not None
         
         self.stdout.write(f"\n{'='*70}")
         self.stdout.write("DJANGO-LIBSQL PERFORMANCE BENCHMARK")
@@ -200,7 +201,7 @@ class Command(BaseCommand):
             completed += 1
             
             # Sync periodically for embedded replicas
-            if hasattr(connection, 'sync') and completed % 100 == 0:
+            if connection.settings_dict.get('SYNC_URL') and completed % 100 == 0:
                 connection.sync()
         
         return completed
@@ -254,7 +255,7 @@ class Command(BaseCommand):
                 batch = []
                 
                 # Sync for embedded replicas
-                if hasattr(connection, 'sync'):
+                if connection.settings_dict.get('SYNC_URL'):
                     connection.sync()
             
             completed += 1
@@ -297,7 +298,7 @@ class Command(BaseCommand):
             completed += 1
             
             # Sync periodically
-            if hasattr(connection, 'sync') and completed % 50 == 0:
+            if connection.settings_dict.get('SYNC_URL') and completed % 50 == 0:
                 connection.sync()
         
         return completed
@@ -322,7 +323,7 @@ class Command(BaseCommand):
             TestRecord.objects.bulk_create(batch)
         
         # Sync if embedded
-        if hasattr(connection, 'sync'):
+        if connection.settings_dict.get('SYNC_URL'):
             connection.sync()
 
     def get_gil_status(self):
@@ -369,11 +370,12 @@ class Command(BaseCommand):
             if len(test_results) >= 2:
                 baseline = test_results[-1]['throughput']  # Slowest
                 best = test_results[0]['throughput']  # Fastest
-                improvement = ((best - baseline) / baseline) * 100
-                self.stdout.write(
-                    f"  Best improvement: {improvement:.1f}% "
-                    f"({test_results[0]['mode']} vs {test_results[-1]['mode']})"
-                )
+                if baseline > 0:
+                    improvement = ((best - baseline) / baseline) * 100
+                    self.stdout.write(
+                        f"  Best improvement: {improvement:.1f}% "
+                        f"({test_results[0]['mode']} vs {test_results[-1]['mode']})"
+                    )
 
     def save_results(self, results):
         """Save results to database."""

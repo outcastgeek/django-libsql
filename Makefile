@@ -144,37 +144,27 @@ test-file: sync
 # Run individual Django example apps
 run-basic-app: sync
 	@echo "🏃 Running Basic Todo App..."
-	@cd examples/basic_app && uv run python manage.py migrate --noinput && \
-		(uv run python manage.py create_sample_data 2>/dev/null || true) && \
-		uv run python manage.py runserver 8000
+	@cd examples/basic_app && uv run python run_app.py
 
 run-blog-app: sync
 	@echo "🏃 Running Blog App..."
-	@cd examples/blog_app && uv run python manage.py migrate --noinput && \
-		(uv run python manage.py create_blog_data 2>/dev/null || true) && \
-		uv run python manage.py runserver 8001
+	@cd examples/blog_app && uv run python run_app.py
 
 run-data-processor: sync
 	@echo "🏃 Running Data Processor..."
-	@cd examples/data_processor && uv run python manage.py migrate --noinput && \
-		(uv run python manage.py create_processor_data 2>/dev/null || true) && \
-		uv run python manage.py runserver 8002
+	@cd examples/data_processor && uv run python run_app.py
 
 run-analytics: sync
 	@echo "🏃 Running Real-time Analytics..."
-	@cd examples/realtime_analytics && uv run python manage.py migrate --noinput && \
-		(uv run python manage.py create_analytics_data 2>/dev/null || true) && \
-		uv run python manage.py runserver 8003
+	@cd examples/realtime_analytics && uv run python run_app.py
 
 run-sensors: sync
 	@echo "🏃 Running Embedded Replica Sensors..."
-	@cd examples/embedded_replica_app && uv run python manage.py migrate --noinput && \
-		uv run python manage.py simulate_sensors
+	@cd examples/embedded_replica_app && uv run python run_app.py
 
 run-benchmark: sync
 	@echo "🏃 Running GIL Benchmark..."
-	@cd examples/gil_benchmark && uv run python manage.py migrate --noinput && \
-		uv run python manage.py run_benchmark
+	@cd examples/gil_benchmark && uv run python run_app.py
 
 # Test Django apps in specific modes
 test-django-app-nogil: sync

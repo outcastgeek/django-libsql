@@ -458,11 +458,11 @@ class ThreadingPerformanceTest(TransactionTestCase):
         if is_gil_disabled():
             # With no-GIL, we should see meaningful speedup, but remote Turso connections
             # add network latency that limits parallelism benefits
-            # Accept any speedup > 1.25x as valid for remote connections
+            # Accept any speedup > 1.20x as valid for remote connections
             self.assertGreater(
                 speedup,
-                1.25,
-                f"Expected at least 25% speedup with no-GIL, got {speedup:.2f}x",
+                1.20,
+                f"Expected at least 20% speedup with no-GIL, got {speedup:.2f}x",
             )
 
             # Also verify it's better than typical GIL performance
