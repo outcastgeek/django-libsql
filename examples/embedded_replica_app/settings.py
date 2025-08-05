@@ -59,8 +59,11 @@ TEMPLATES = [
 STATIC_URL = '/static/'
 
 # Database configuration
-# Use embedded replica if USE_EMBEDDED_REPLICA is set, otherwise remote-only
-if os.environ.get('USE_EMBEDDED_REPLICA'):
+# Control whether to use embedded replica mode via environment variable
+USE_EMBEDDED_REPLICA = os.environ.get('USE_EMBEDDED_REPLICA', 'True').lower() in ('true', '1', 'yes')
+
+if USE_EMBEDDED_REPLICA:
+    # Embedded replica mode - local file with remote sync
     DATABASES = {
         'default': {
             'ENGINE': 'django_libsql.libsql',
@@ -70,18 +73,19 @@ if os.environ.get('USE_EMBEDDED_REPLICA'):
             'SYNC_URL': os.environ.get('TURSO_DATABASE_URL'),
             'AUTH_TOKEN': os.environ.get('TURSO_AUTH_TOKEN'),
             # Sync every 1 second in background for demo
-            'SYNC_INTERVAL': 1.0,
+            'SYNC_INTERVAL': float(os.environ.get('TURSO_SYNC_INTERVAL', '1.0')),
             # Optional encryption for local replica
             'ENCRYPTION_KEY': os.environ.get('ENCRYPTION_KEY'),
         }
     }
 else:
-    # Remote-only mode (direct Turso connection)
+    # Remote-only mode - direct Turso connection
     DATABASES = {
         'default': {
             'ENGINE': 'django_libsql.libsql',
             'NAME': os.environ.get('TURSO_DATABASE_URL'),
             'AUTH_TOKEN': os.environ.get('TURSO_AUTH_TOKEN'),
+            'SYNC_INTERVAL': float(os.environ.get('TURSO_SYNC_INTERVAL', '0.1')),
         }
     }
 

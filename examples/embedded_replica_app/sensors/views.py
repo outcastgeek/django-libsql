@@ -23,10 +23,15 @@ def index(request):
     ).order_by('-reading_count')[:5]
     
     # Get sync status
-    latest_sync = SyncLog.objects.order_by('-sync_time').first()
+    latest_sync = SyncLog.objects.order_by('-timestamp').first()
     
     # Check if running embedded replica
     is_embedded = hasattr(connection, 'sync')
+    
+    # Get additional stats
+    total_readings = SensorReading.objects.count()
+    unique_sensors = SensorReading.objects.values('sensor_id').distinct().count()
+    aggregated_count = AggregatedData.objects.count()
     
     context = {
         'recent_readings': recent_readings,
@@ -34,6 +39,9 @@ def index(request):
         'latest_sync': latest_sync,
         'is_embedded': is_embedded,
         'gil_status': get_gil_status(),
+        'total_readings': total_readings,
+        'unique_sensors': unique_sensors,
+        'aggregated_count': aggregated_count,
     }
     
     return render(request, 'sensors/dashboard.html', context)
@@ -53,7 +61,7 @@ def api_readings(request):
         readings = readings.filter(sensor_id=sensor_id)
     
     # Get data
-    data = list(readings.values('sensor_id', 'temperature', 'humidity', 'pressure', 'timestamp').order_by('-timestamp')[:100])
+    data = list(readings.values('sensor_id', 'temperature', 'humidity', 'location', 'timestamp').order_by('-timestamp')[:100])
     
     # Convert timestamps to strings
     for item in data:
@@ -69,22 +77,22 @@ def api_readings(request):
 def api_stats(request):
     """API endpoint for aggregated statistics."""
     # Get time range
-    hours = int(request.GET.get('hours', 24))
-    cutoff = timezone.now() - timedelta(hours=hours)
+    days = int(request.GET.get('days', 7))
+    cutoff = timezone.now().date() - timedelta(days=days)
     
     # Get aggregated data
     stats = AggregatedData.objects.filter(
-        hour__gte=cutoff
+        date__gte=cutoff
     ).values('sensor_id').annotate(
         avg_temp=Avg('avg_temperature'),
         min_temp=Min('min_temperature'),
         max_temp=Max('max_temperature'),
-        total_readings=Count('id')
+        total_readings=Sum('reading_count')
     )
     
     return JsonResponse({
         'stats': list(stats),
-        'time_range_hours': hours,
+        'time_range_days': days,
     })
 
 
@@ -101,20 +109,33 @@ def api_sync(request):
         }, status=400)
     
     try:
+        import time
+        start_time = time.time()
+        
         # Perform sync
         connection.sync()
         
+        duration_ms = int((time.time() - start_time) * 1000)
+        
+        # Count unsynced records (approximate)
+        unsynced_count = SensorReading.objects.filter(synced=False).count()
+        
         # Log it
-        SyncLog.objects.create(
+        sync_log = SyncLog.objects.create(
             sync_type='manual',
-            records_synced=0,  # We don't know exact count
-            success=True,
-            details={'triggered_by': 'api'}
+            records_synced=unsynced_count,
+            duration_ms=duration_ms,
+            success=True
         )
+        
+        # Mark records as synced
+        SensorReading.objects.filter(synced=False).update(synced=True)
         
         return JsonResponse({
             'success': True,
-            'message': 'Sync completed successfully'
+            'message': 'Sync completed successfully',
+            'records_synced': unsynced_count,
+            'duration_ms': duration_ms
         })
     except Exception as e:
         return JsonResponse({

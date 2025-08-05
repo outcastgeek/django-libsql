@@ -12,6 +12,7 @@ class SensorReading(models.Model):
     sensor_id = models.CharField(max_length=50, db_index=True)
     temperature = models.DecimalField(max_digits=5, decimal_places=2)
     humidity = models.DecimalField(max_digits=5, decimal_places=2)
+    pressure = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
     location = models.CharField(max_length=100)
     timestamp = models.DateTimeField(default=timezone.now, db_index=True)
     synced = models.BooleanField(default=False)

@@ -48,24 +48,28 @@ TEMPLATES = [
 ]
 
 # Database configuration
-# Use embedded replica if USE_EMBEDDED_REPLICA is set
-if os.environ.get('USE_EMBEDDED_REPLICA'):
+# Control whether to use embedded replica mode via environment variable
+USE_EMBEDDED_REPLICA = os.environ.get('USE_EMBEDDED_REPLICA', 'False').lower() in ('true', '1', 'yes')
+
+if USE_EMBEDDED_REPLICA:
+    # Embedded replica mode - local file with remote sync
     DATABASES = {
         'default': {
             'ENGINE': 'django_libsql.libsql',
             'NAME': str(BASE_DIR / 'benchmark_replica.db'),
             'SYNC_URL': os.environ.get('TURSO_DATABASE_URL'),
             'AUTH_TOKEN': os.environ.get('TURSO_AUTH_TOKEN'),
-            'SYNC_INTERVAL': 0.5,  # Sync every 0.5 seconds
+            'SYNC_INTERVAL': float(os.environ.get('TURSO_SYNC_INTERVAL', '0.5')),  # Sync every 0.5 seconds
         }
     }
 else:
-    # Remote-only mode
+    # Remote-only mode (default for benchmarks)
     DATABASES = {
         'default': {
             'ENGINE': 'django_libsql.libsql',
             'NAME': os.environ.get('TURSO_DATABASE_URL'),
             'AUTH_TOKEN': os.environ.get('TURSO_AUTH_TOKEN'),
+            'SYNC_INTERVAL': float(os.environ.get('TURSO_SYNC_INTERVAL', '0.1')),
         }
     }
 

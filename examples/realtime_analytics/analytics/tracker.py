@@ -287,10 +287,14 @@ class RealtimeTracker:
     def _update_daily_stats(self, website: Website):
         """Update daily statistics."""
         today = timezone.now().date()
+        today_start = datetime.combine(today, datetime.min.time())
+        today_end = today_start + timedelta(days=1)
 
         # Aggregate from hourly stats
         daily_data = HourlyStats.objects.filter(
-            website=website, hour__date=today
+            website=website, 
+            hour__gte=timezone.make_aware(today_start),
+            hour__lt=timezone.make_aware(today_end)
         ).aggregate(
             pageviews=Sum("pageviews"),
             unique_visitors=Sum("unique_visitors"),

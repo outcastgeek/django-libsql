@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Real-time Analytics - Django-LibSQL</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+        }
+        .nav {
+            background: white;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+        .nav a {
+            text-decoration: none;
+            color: #555;
+            padding: 0.5rem 1rem;
+        }
+        .nav a:hover {
+            color: #667eea;
+        }
+        .nav a.active {
+            color: #667eea;
+            font-weight: bold;
+        }
+        .actions {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .action-button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: background 0.3s ease;
+        }
+        .action-button:hover {
+            background: #5a63d8;
+        }
+        .action-button.secondary {
+            background: #6c757d;
+        }
+        .action-button.secondary:hover {
+            background: #5a6268;
+        }
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .metric-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+            transition: transform 0.2s ease;
+        }
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        .metric-value {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #667eea;
+            margin: 0.5rem 0;
+        }
+        .metric-label {
+            color: #666;
+            font-size: 1.1rem;
+        }
+        .metric-change {
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+        .change-positive {
+            color: #00b894;
+        }
+        .change-negative {
+            color: #d63031;
+        }
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+        .chart-container {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .table-container {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+        }
+        .progress-bar {
+            background: #e9ecef;
+            height: 10px;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            background: #667eea;
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+        .realtime-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: #e3f2fd;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+        .pulse {
+            width: 10px;
+            height: 10px;
+            background: #4caf50;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7);
+            }
+            70% {
+                transform: scale(1);
+                box-shadow: 0 0 0 10px rgba(76, 175, 80, 0);
+            }
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
+            }
+        }
+        .filter-section {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        .filter-section select,
+        .filter-section input {
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        @media (max-width: 768px) {
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Real-time Analytics Dashboard</h1>
+        <p>Powered by django-libsql and Turso</p>
+        <div class="realtime-indicator">
+            <span class="pulse"></span>
+            <span>Live Updates Every 5 Seconds</span>
+        </div>
+    </div>
+
+    <nav class="nav">
+        <a href="{% url 'analytics:dashboard' %}" class="active">Dashboard</a>
+        {% if website %}
+        <a href="{% url 'analytics:realtime_data' website.tracking_id %}">Real-time API</a>
+        <a href="{% url 'analytics:hourly_data' website.tracking_id %}">Hourly API</a>
+        {% endif %}
+        <a href="/admin/">Admin Panel</a>
+        <div style="margin-left: auto; color: #666;">
+            <strong>Quick Actions:</strong> Track events • View real-time metrics • Auto-refreshes every 5s
+        </div>
+    </nav>
+
+    <div class="actions">
+        <h3>Quick Actions</h3>
+        <div class="action-buttons">
+            <button class="action-button" onclick="trackEvent('button_click', 'dashboard')">
+                Track Button Click
+            </button>
+            <button class="action-button" onclick="trackEvent('test_event', 'demo')">
+                Track Test Event
+            </button>
+            <button class="action-button secondary" onclick="trackPageView()">
+                Track Page View
+            </button>
+            <button class="action-button secondary" onclick="window.location.reload()">
+                Refresh Dashboard
+            </button>
+        </div>
+    </div>
+
+    <div class="metrics-grid">
+        <div class="metric-card">
+            <div class="metric-label">Page Views Today</div>
+            <div class="metric-value">{{ stats.page_views_today|default:"0" }}</div>
+            <div class="metric-change change-positive">
+                ↑ {{ stats.page_views_change|default:"0" }}% from yesterday
+            </div>
+        </div>
+        
+        <div class="metric-card">
+            <div class="metric-label">Unique Visitors</div>
+            <div class="metric-value">{{ stats.unique_visitors_today|default:"0" }}</div>
+            <div class="metric-change change-positive">
+                ↑ {{ stats.visitors_change|default:"0" }}% from yesterday
+            </div>
+        </div>
+        
+        <div class="metric-card">
+            <div class="metric-label">Events Tracked</div>
+            <div class="metric-value">{{ stats.events_today|default:"0" }}</div>
+            <div class="metric-change">
+                {{ stats.events_per_minute|default:"0" }} per minute
+            </div>
+        </div>
+        
+        <div class="metric-card">
+            <div class="metric-label">Active Sessions</div>
+            <div class="metric-value">{{ stats.active_sessions|default:"0" }}</div>
+            <div class="metric-change">
+                {{ stats.avg_session_duration|default:"0" }}m avg duration
+            </div>
+        </div>
+    </div>
+
+    <div class="content-grid">
+        <div class="table-container">
+            <h3>Top Pages</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Page</th>
+                        <th>Views</th>
+                        <th>Unique</th>
+                        <th>Trend</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for page in top_pages %}
+                    <tr>
+                        <td>{{ page.path }}</td>
+                        <td>{{ page.view_count }}</td>
+                        <td>{{ page.unique_visitors|default:"0" }}</td>
+                        <td>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: {% widthratio page.view_count max_page_views 100 %}%"></div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: #666;">
+                            No page views yet. Navigate around the site to see analytics!
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="table-container">
+            <h3>Recent Events</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Event</th>
+                        <th>Category</th>
+                        <th>Time</th>
+                        <th>User</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for event in recent_events %}
+                    <tr>
+                        <td>{{ event.event_type }}</td>
+                        <td>{{ event.category|default:"-" }}</td>
+                        <td>{{ event.timestamp|date:"g:i:s A" }}</td>
+                        <td>{{ event.user_id|truncatechars:8 }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: #666;">
+                            No events tracked yet. Click "Track Test Event" to start!
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="chart-container" style="margin-top: 2rem;">
+        <h3>Traffic Over Time</h3>
+        <div id="traffic-chart" style="height: 300px; display: flex; align-items: center; justify-content: center; color: #666;">
+            <p>Chart visualization would go here. For demo purposes, showing table data above.</p>
+        </div>
+    </div>
+
+    <script>
+        // Get tracking ID
+        const trackingId = '{{ website.tracking_id|default:"demo-site" }}';
+        
+        // Track initial page view
+        function trackPageView() {
+            fetch("{% url 'analytics:track_pageview' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    tracking_id: trackingId,
+                    path: window.location.pathname,
+                    title: document.title,
+                    referrer: document.referrer
+                })
+            }).then(() => {
+                console.log('Page view tracked');
+                setTimeout(() => window.location.reload(), 500);
+            });
+        }
+
+        // Track custom event function
+        function trackEvent(eventType, category) {
+            fetch("{% url 'analytics:track_event' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    tracking_id: trackingId,
+                    event: eventType,
+                    category: category,
+                    properties: {
+                        source: 'dashboard_button',
+                        timestamp: new Date().toISOString()
+                    }
+                })
+            }).then(() => {
+                console.log('Event tracked:', eventType);
+                // Reload page to see new event
+                setTimeout(() => window.location.reload(), 500);
+            });
+        }
+
+        // Track initial page view on load
+        trackPageView();
+
+        // Auto-refresh every 5 seconds
+        setTimeout(() => {
+            window.location.reload();
+        }, 5000);
+    </script>
+</body>
+</html>

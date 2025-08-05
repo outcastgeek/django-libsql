@@ -1,27 +1,221 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Performance Benchmark Dashboard</title>
+    <title>Performance Benchmark - Django-LibSQL</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
-        .container { max-width: 1200px; margin: 0 auto; }
-        .header { background: #2c3e50; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-        .status { display: flex; gap: 20px; margin-bottom: 20px; }
-        .status-card { background: white; padding: 15px; border-radius: 8px; flex: 1; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
-        .badge-success { background: #27ae60; color: white; }
-        .badge-info { background: #3498db; color: white; }
-        .section { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
-        th { background: #ecf0f1; font-weight: bold; }
-        .chart { margin: 20px 0; }
-        .bar { background: #3498db; height: 20px; margin: 5px 0; position: relative; }
-        .bar-label { position: absolute; right: 5px; color: white; font-size: 12px; line-height: 20px; }
-        .actions { margin: 20px 0; }
-        .btn { padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        .btn:hover { background: #2980b9; }
-        pre { background: #2c3e50; color: #ecf0f1; padding: 15px; border-radius: 4px; overflow-x: auto; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            background: #f5f5f5;
+            line-height: 1.6;
+        }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .header { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        .header h1 { margin: 0; font-size: 2.5rem; }
+        .header p { margin: 0.5rem 0 0 0; opacity: 0.9; }
+        
+        .nav {
+            background: white;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+        .nav a {
+            text-decoration: none;
+            color: #555;
+            padding: 0.5rem 1rem;
+        }
+        .nav a:hover { color: #667eea; }
+        .nav a.active {
+            color: #667eea;
+            font-weight: bold;
+        }
+        
+        .status { 
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .status-card { 
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease;
+        }
+        .status-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        .status-card h3 { 
+            margin-top: 0;
+            color: #333;
+            font-size: 1.1rem;
+        }
+        .badge { 
+            display: inline-block;
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .badge-success { background: #d4edda; color: #155724; }
+        .badge-info { background: #d1ecf1; color: #0c5460; }
+        .badge-warning { background: #fff3cd; color: #856404; }
+        
+        .section { 
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .section h2 {
+            margin-top: 0;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        table { 
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        th, td { 
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+        th { 
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+        }
+        tr:hover { background: #f8f9fa; }
+        
+        .chart-container { margin: 1.5rem 0; }
+        .performance-bar {
+            background: #e9ecef;
+            height: 30px;
+            border-radius: 15px;
+            margin: 0.5rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+        .performance-fill {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 1rem;
+            color: white;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: width 0.5s ease;
+        }
+        
+        .benchmark-form {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .form-group label {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #495057;
+        }
+        .form-group select,
+        .form-group input {
+            padding: 0.5rem;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        
+        .btn { 
+            padding: 0.75rem 1.5rem;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 1rem;
+            transition: background 0.3s ease;
+        }
+        .btn:hover { background: #5a63d8; }
+        .btn-success { background: #28a745; }
+        .btn-success:hover { background: #218838; }
+        .btn-secondary { background: #6c757d; }
+        .btn-secondary:hover { background: #5a6268; }
+        .btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        
+        pre {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 4px;
+            overflow-x: auto;
+            border: 1px solid #dee2e6;
+        }
+        
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 4px;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 768px) {
+            .status { grid-template-columns: 1fr; }
+            .form-grid { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
@@ -31,57 +225,147 @@
             <p>Django + libSQL Performance Testing in All Modes</p>
         </div>
 
+        <nav class="nav">
+            <a href="{% url 'benchmark_app:index' %}" class="active">Dashboard</a>
+            <a href="{% url 'benchmark_app:results' %}">All Results</a>
+            <a href="/admin/">Admin Panel</a>
+            <div style="margin-left: auto; color: #666;">
+                <strong>Quick Actions:</strong> Run benchmarks • Compare performance • View results
+            </div>
+        </nav>
+
         <div class="status">
             <div class="status-card">
-                <h3>Python Mode</h3>
+                <h3>🐍 Python Mode</h3>
                 <p>
                     {% if 'NO-GIL' in gil_status %}
                         <span class="badge badge-success">{{ gil_status }}</span>
-                        <br><small>Free-threading enabled</small>
+                        <br><small style="color: #666; display: block; margin-top: 0.5rem;">
+                            Free-threading build with true parallelism enabled.
+                            Multiple threads can execute Python code simultaneously.
+                        </small>
                     {% else %}
-                        <span class="badge badge-info">{{ gil_status }}</span>
-                        <br><small>Standard Python</small>
+                        <span class="badge badge-warning">{{ gil_status }}</span>
+                        <br><small style="color: #666; display: block; margin-top: 0.5rem;">
+                            Standard Python with Global Interpreter Lock.
+                            Only one thread executes Python code at a time.
+                        </small>
                     {% endif %}
                 </p>
             </div>
             
             <div class="status-card">
-                <h3>Database Mode</h3>
+                <h3>🗄️ Database Mode</h3>
                 <p>
                     {% if is_embedded %}
                         <span class="badge badge-success">Embedded Replica</span>
-                        <br><small>Local + sync</small>
+                        <br><small style="color: #666; display: block; margin-top: 0.5rem;">
+                            Local SQLite with background sync to Turso.
+                            Fast local reads/writes with eventual consistency.
+                        </small>
                     {% else %}
                         <span class="badge badge-info">Remote Only</span>
-                        <br><small>Direct Turso</small>
+                        <br><small style="color: #666; display: block; margin-top: 0.5rem;">
+                            Direct connection to Turso cloud database.
+                            All operations go through the network.
+                        </small>
                     {% endif %}
                 </p>
             </div>
             
             <div class="status-card">
-                <h3>Total Benchmarks</h3>
+                <h3>📊 Benchmark Stats</h3>
                 <p>
-                    <strong>{{ recent_results|length }}</strong> recent runs
+                    <span class="badge badge-info">{{ total_benchmarks }} total runs</span>
+                    <br><small style="color: #666; display: block; margin-top: 0.5rem;">
+                        <strong>{{ recent_results|length }}</strong> recent results
+                        • Best: <strong>{{ best_throughput|floatformat:1 }}</strong> ops/sec
+                    </small>
+                </p>
+            </div>
+
+            <div class="status-card">
+                <h3>💻 System Info</h3>
+                <p>
+                    <span class="badge badge-info">{{ cpu_count }} CPU cores</span>
+                    <br><small style="color: #666; display: block; margin-top: 0.5rem;">
+                        Platform: <strong>{{ platform }}</strong>
+                        • Python <strong>{{ python_version }}</strong>
+                    </small>
                 </p>
             </div>
         </div>
 
         <div class="section">
-            <h2>🏆 Best Performance by Test Type</h2>
-            <div class="chart">
-                {% for test, result in best_results.items %}
-                <div style="margin-bottom: 15px;">
-                    <strong>{{ test|upper }}</strong>
-                    <div class="bar" style="width: {% widthratio result.throughput 1000 100 %}%;">
-                        <span class="bar-label">{{ result.throughput|floatformat:1 }} ops/sec ({{ result.mode }})</span>
+            <h2>🏃 Quick Benchmark</h2>
+            <div class="info-box">
+                <strong>💡 Tip:</strong> Run benchmarks to compare performance across different configurations. 
+                Each test measures throughput (operations per second) for database operations.
+            </div>
+            
+            <div class="benchmark-form">
+                <form id="benchmarkForm" onsubmit="runBenchmark(event)">
+                    {% csrf_token %}
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="test">Test Type</label>
+                            <select id="test" name="test" required>
+                                <option value="crud">CRUD (Create, Read, Update, Delete)</option>
+                                <option value="read">Read Heavy</option>
+                                <option value="write">Write Heavy</option>
+                                <option value="mixed">Mixed Operations</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="operations">Operations</label>
+                            <input type="number" id="operations" name="operations" value="100" min="10" max="10000" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="threads">Threads</label>
+                            <select id="threads" name="threads">
+                                <option value="1">1 thread (sequential)</option>
+                                <option value="2">2 threads</option>
+                                <option value="4" selected>4 threads</option>
+                                <option value="8">8 threads</option>
+                                <option value="16">16 threads</option>
+                            </select>
+                        </div>
                     </div>
+                    
+                    <button type="submit" class="btn" id="runButton">
+                        Run Benchmark
+                    </button>
+                    <span id="status"></span>
+                </form>
+            </div>
+        </div>
+
+        {% if best_results %}
+        <div class="section">
+            <h2>🏆 Best Performance by Test Type</h2>
+            <div class="chart-container">
+                {% for test, result in best_results.items %}
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="margin: 0.5rem 0;">{{ test|upper }} Test</h4>
+                    <div class="performance-bar">
+                        <div class="performance-fill" style="width: {% widthratio result.throughput best_overall_throughput 100 %}%;">
+                            {{ result.throughput|floatformat:1 }} ops/sec
+                        </div>
+                    </div>
+                    <small style="color: #666;">
+                        Mode: {{ result.mode }} • {{ result.threads }} threads • {{ result.timestamp|timesince }} ago
+                    </small>
                 </div>
                 {% endfor %}
             </div>
         </div>
+        {% endif %}
 
         <div class="section">
             <h2>📊 Recent Benchmark Results</h2>
+            {% if recent_results %}
             <table>
                 <thead>
                     <tr>
@@ -98,7 +382,16 @@
                     {% for result in recent_results %}
                     <tr>
                         <td><strong>{{ result.test_name }}</strong></td>
-                        <td>{{ result.mode }}</td>
+                        <td>
+                            {% if result.gil_enabled %}
+                                <span class="badge badge-warning">GIL</span>
+                            {% else %}
+                                <span class="badge badge-success">NO-GIL</span>
+                            {% endif %}
+                            {% if result.is_embedded %}
+                                <span class="badge badge-info">Embedded</span>
+                            {% endif %}
+                        </td>
                         <td>{{ result.threads }}</td>
                         <td>{{ result.operations }}</td>
                         <td><strong>{{ result.throughput|floatformat:1 }}</strong> ops/sec</td>
@@ -108,60 +401,92 @@
                     {% endfor %}
                 </tbody>
             </table>
+            {% else %}
+            <p style="text-align: center; color: #666; padding: 2rem;">
+                No benchmark results yet. Run a benchmark to see performance data!
+            </p>
+            {% endif %}
         </div>
 
         <div class="section">
-            <h2>🔧 Run Benchmarks</h2>
-            <p>Execute benchmarks using Django management commands:</p>
+            <h2>🔧 Command Line Benchmarks</h2>
+            <p>For more control, run benchmarks from the command line:</p>
             <pre>
-# Run basic benchmark
+# Run basic benchmark (CRUD test with default settings)
 python manage.py run_benchmark
 
 # Run with specific parameters
 python manage.py run_benchmark --test crud --operations 1000 --threads 4
 
-# Run ALL modes automatically (NO MANUAL INTERVENTION!)
+# Run ALL modes automatically (no manual intervention!)
 python manage.py benchmark_all_modes
 
-# With no-GIL Python
+# With no-GIL Python (free-threading)
 PYTHON_GIL=0 python -X gil=0 manage.py run_benchmark --threads 8
 
-# With embedded replica
+# With embedded replica mode
 USE_EMBEDDED_REPLICA=1 python manage.py run_benchmark
-            </pre>
 
-            <div class="actions">
-                <button class="btn" onclick="runBenchmark('crud')">Run CRUD Test</button>
-                <button class="btn" onclick="runBenchmark('read')">Run Read Test</button>
-                <button class="btn" onclick="runBenchmark('write')">Run Write Test</button>
-                <button class="btn" onclick="runBenchmark('mixed')">Run Mixed Test</button>
+# Compare GIL vs No-GIL performance
+python manage.py compare_gil_performance</pre>
+            
+            <div class="info-box">
+                <strong>🔍 What to observe:</strong>
+                <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
+                    <li><strong>GIL vs No-GIL:</strong> No-GIL shows better scaling with multiple threads</li>
+                    <li><strong>Thread Scaling:</strong> Performance should improve with more threads (especially without GIL)</li>
+                    <li><strong>Embedded vs Remote:</strong> Embedded replica typically faster for reads</li>
+                    <li><strong>Operation Types:</strong> Different patterns show different performance characteristics</li>
+                </ul>
             </div>
         </div>
     </div>
 
     <script>
-        function runBenchmark(testType) {
-            if (!confirm(`Run ${testType} benchmark?`)) return;
+        function runBenchmark(event) {
+            event.preventDefault();
             
-            fetch('/run/', {
+            const form = event.target;
+            const button = document.getElementById('runButton');
+            const status = document.getElementById('status');
+            const formData = new FormData(form);
+            
+            // Disable button and show loading
+            button.disabled = true;
+            button.innerHTML = 'Running... <span class="loading"></span>';
+            status.textContent = '';
+            
+            // Prepare data
+            const data = {
+                test: formData.get('test'),
+                operations: parseInt(formData.get('operations')),
+                threads: parseInt(formData.get('threads'))
+            };
+            
+            fetch("{% url 'benchmark_app:run_benchmark' %}", {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
                 },
-                body: JSON.stringify({
-                    test: testType,
-                    operations: 100,
-                    threads: 1
-                })
+                body: JSON.stringify(data)
             })
             .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert(`Benchmark completed!\nThroughput: ${data.result.throughput.toFixed(1)} ops/sec`);
-                    location.reload();
+            .then(result => {
+                if (result.success) {
+                    status.innerHTML = `<span style="color: #28a745;">✅ Benchmark completed! Throughput: <strong>${result.throughput.toFixed(1)} ops/sec</strong></span>`;
+                    // Reload page after 2 seconds to show new result
+                    setTimeout(() => location.reload(), 2000);
                 } else {
-                    alert('Benchmark failed: ' + data.error);
+                    status.innerHTML = `<span style="color: #dc3545;">❌ Error: ${result.error}</span>`;
+                    button.disabled = false;
+                    button.textContent = 'Run Benchmark';
                 }
+            })
+            .catch(error => {
+                status.innerHTML = `<span style="color: #dc3545;">❌ Request failed: ${error}</span>`;
+                button.disabled = false;
+                button.textContent = 'Run Benchmark';
             });
         }
     </script>

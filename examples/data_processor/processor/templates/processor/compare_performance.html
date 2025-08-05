@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Performance Comparison - Data Processor</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        .nav {
+            background: white;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .nav a {
+            text-decoration: none;
+            color: #555;
+            margin-right: 2rem;
+        }
+        .nav a:hover {
+            color: #667eea;
+        }
+        .nav a.active {
+            color: #667eea;
+            font-weight: bold;
+        }
+        .info-box {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        .chart-container {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        .performance-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        .performance-table th,
+        .performance-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        .performance-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+        .performance-bar {
+            background: #e9ecef;
+            height: 20px;
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+        .performance-fill {
+            background: #667eea;
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+        .highlight {
+            background: #fff3cd;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+        .test-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-right: 1rem;
+        }
+        .test-button:hover {
+            background: #5a63d8;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Performance Comparison</h1>
+        <p>GIL vs No-GIL Threading Performance</p>
+    </div>
+
+    <nav class="nav">
+        <a href="{% url 'processor:index' %}">Dashboard</a>
+        <a href="{% url 'processor:compare_performance' %}" class="active">Performance Comparison</a>
+        <a href="/admin/">Admin Panel</a>
+    </nav>
+
+    <div class="info-box">
+        <h2>Current Environment</h2>
+        <p><strong>Python GIL Status:</strong> {{ gil_status }}</p>
+        <p><strong>CPU Cores:</strong> {{ cpu_count }}</p>
+        <p><strong>Max Workers:</strong> {{ max_workers }}</p>
+        
+        <div class="highlight">
+            <strong>💡 Tip:</strong> To see the full performance benefits, run this app with Python's free-threading build (no-GIL). 
+            The performance difference is most noticeable with CPU-intensive operations and multiple workers.
+        </div>
+    </div>
+
+    {% if performance_data %}
+    <div class="chart-container">
+        <h2>Performance by Worker Count</h2>
+        <table class="performance-table">
+            <thead>
+                <tr>
+                    <th>Workers</th>
+                    <th>Avg Items/Second</th>
+                    <th>Jobs Completed</th>
+                    <th>Performance</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for data in performance_data %}
+                <tr>
+                    <td>{{ data.num_workers }}</td>
+                    <td>{{ data.avg_items_per_sec|floatformat:1 }}</td>
+                    <td>{{ data.job_count }}</td>
+                    <td>
+                        <div class="performance-bar">
+                            <div class="performance-fill" style="width: {% widthratio data.avg_items_per_sec max_performance 100 %}%"></div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="info-box">
+        <p>No performance data available yet. Run some processing jobs to see performance comparisons.</p>
+    </div>
+    {% endif %}
+
+    <div class="test-section">
+        <h2>Run Performance Test</h2>
+        <p>Create test jobs with different worker configurations to compare performance:</p>
+        
+        <form method="post" action="{% url 'processor:create_job' %}" style="display: inline;">
+            {% csrf_token %}
+            <input type="hidden" name="name" value="Performance Test - 1 Worker">
+            <input type="hidden" name="data_source" value="{{ first_source_id }}">
+            <input type="hidden" name="num_workers" value="1">
+            <input type="hidden" name="batch_size" value="100">
+            <input type="hidden" name="num_items" value="5000">
+            <button type="submit" class="test-button">Test 1 Worker</button>
+        </form>
+        
+        <form method="post" action="{% url 'processor:create_job' %}" style="display: inline;">
+            {% csrf_token %}
+            <input type="hidden" name="name" value="Performance Test - 4 Workers">
+            <input type="hidden" name="data_source" value="{{ first_source_id }}">
+            <input type="hidden" name="num_workers" value="4">
+            <input type="hidden" name="batch_size" value="100">
+            <input type="hidden" name="num_items" value="5000">
+            <button type="submit" class="test-button">Test 4 Workers</button>
+        </form>
+        
+        <form method="post" action="{% url 'processor:create_job' %}" style="display: inline;">
+            {% csrf_token %}
+            <input type="hidden" name="name" value="Performance Test - 8 Workers">
+            <input type="hidden" name="data_source" value="{{ first_source_id }}">
+            <input type="hidden" name="num_workers" value="8">
+            <input type="hidden" name="batch_size" value="100">
+            <input type="hidden" name="num_items" value="5000">
+            <button type="submit" class="test-button">Test 8 Workers</button>
+        </form>
+        
+        {% if not first_source_id %}
+        <div class="highlight" style="margin-top: 1rem;">
+            <strong>⚠️ No data sources configured!</strong> 
+            <a href="/admin/processor/datasource/add/">Add a data source</a> first to run performance tests.
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="info-box" style="margin-top: 2rem;">
+        <h3>Understanding the Results</h3>
+        <ul>
+            <li><strong>With GIL:</strong> Performance typically plateaus or even decreases with more workers due to GIL contention</li>
+            <li><strong>Without GIL:</strong> Performance scales more linearly with the number of workers, especially for CPU-intensive tasks</li>
+            <li><strong>Best Practice:</strong> Match worker count to CPU cores for optimal performance</li>
+        </ul>
+    </div>
+</body>
+</html>

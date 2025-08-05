@@ -42,9 +42,16 @@ if __name__ == "__main__":
         print("\n📦 Running migrations...")
         call_command('migrate', '--noinput')
         
+        # Create sample data
+        print("\n📝 Creating sample benchmark data...")
+        try:
+            call_command('create_benchmark_data')
+        except Exception as e:
+            print(f"Sample data creation failed: {e}")
     
     # Start server (this will run on both main and reload)
     print("\n🚀 Starting server...")
+    print("Visit http://127.0.0.1:8005/")
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "settings")
     from django.core.management import execute_from_command_line
-    execute_from_command_line(['manage.py', 'run_benchmark'])
+    execute_from_command_line(['manage.py', 'runserver', '8005'])

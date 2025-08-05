@@ -11,3 +11,14 @@ wheels/
 .idea
 .envrc
 CLAUDE.md
+
+# SQL Database files
+*.db
+*.db-info
+*.db-wal
+*.db-shm
+*.sqlite3
+*.db-journal
+*.db-lock
+*.db-temp
+*.db-sqlite

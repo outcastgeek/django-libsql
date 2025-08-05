@@ -42,6 +42,12 @@ if __name__ == "__main__":
         print("\n📦 Running migrations...")
         call_command('migrate', '--noinput')
         
+        # Create sample data
+        print("\n📝 Creating sample sensor data...")
+        try:
+            call_command('create_sensor_data')
+        except Exception as e:
+            print(f"Sample data creation failed: {e}")
     
     # Start server (this will run on both main and reload)
     print("\n🚀 Starting server...")

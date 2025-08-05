@@ -42,6 +42,19 @@ def index(request):
         job_count=Count("jobs")
     )
 
+    # Calculate additional stats for the template
+    stats = {
+        "total_jobs": job_stats["total"],
+        "running_jobs": job_stats["running"],
+        "completed_jobs": job_stats["completed"],
+        "total_processed": ProcessingJob.objects.aggregate(
+            total=Sum("processed_items")
+        )["total"] or 0,
+    }
+    
+    # Check if any jobs are running
+    has_running_jobs = job_stats["running"] > 0
+
     context = {
         "recent_jobs": recent_jobs,
         "job_stats": job_stats,
@@ -51,6 +64,8 @@ def index(request):
         if settings.DATA_PROCESSOR_SETTINGS["ENABLE_NO_GIL"]
         else "ENABLED",
         "max_workers": settings.DATA_PROCESSOR_SETTINGS["MAX_WORKERS"],
+        "stats": stats,
+        "has_running_jobs": has_running_jobs,
     }
 
     return render(request, "processor/index.html", context)
@@ -81,12 +96,16 @@ def job_detail(request, job_id):
     # Failed items
     failed_items = DataItem.objects.filter(job=job, is_failed=True)[:10]
 
+    # Get recent items for display
+    recent_items = DataItem.objects.filter(job=job).order_by("-id")[:20]
+    
     context = {
         "job": job,
         "item_stats": item_stats,
         "metrics": metrics,
         "sample_items": sample_items,
         "failed_items": failed_items,
+        "recent_items": recent_items,
     }
 
     return render(request, "processor/job_detail.html", context)
@@ -140,13 +159,8 @@ def create_job(request):
     thread.daemon = True
     thread.start()
 
-    return JsonResponse(
-        {
-            "job_id": job.id,
-            "status": "started",
-            "message": f"Job created with {num_items} items",
-        }
-    )
+    # Redirect to job detail page
+    return redirect("processor:job_detail", job_id=job.id)
 
 
 @require_http_methods(["GET"])
@@ -194,22 +208,61 @@ def cancel_job(request, job_id):
 
 def compare_performance(request):
     """Compare performance with and without GIL."""
-    # Get jobs grouped by worker count
-    performance_data = (
-        ProcessingJob.objects.filter(status="completed")
-        .values("num_workers")
-        .annotate(
-            avg_items_per_sec=Avg("processed_items") / Avg("duration"),
-            job_count=Count("id"),
-        )
-        .order_by("num_workers")
+    # Get completed jobs with their durations calculated
+    completed_jobs = ProcessingJob.objects.filter(
+        status="completed", 
+        completed_at__isnull=False,
+        started_at__isnull=False
     )
+    
+    # Group by worker count and calculate averages manually
+    performance_by_workers = {}
+    for job in completed_jobs:
+        num_workers = job.num_workers
+        if num_workers not in performance_by_workers:
+            performance_by_workers[num_workers] = {
+                "total_items": 0,
+                "total_duration": 0,
+                "count": 0
+            }
+        
+        performance_by_workers[num_workers]["total_items"] += job.processed_items
+        performance_by_workers[num_workers]["total_duration"] += job.duration or 0
+        performance_by_workers[num_workers]["count"] += 1
+    
+    # Calculate averages
+    performance_data = []
+    for num_workers, data in sorted(performance_by_workers.items()):
+        avg_items = data["total_items"] / data["count"] if data["count"] > 0 else 0
+        avg_duration = data["total_duration"] / data["count"] if data["count"] > 0 else 0
+        avg_items_per_sec = avg_items / avg_duration if avg_duration > 0 else 0
+        
+        performance_data.append({
+            "num_workers": num_workers,
+            "avg_items_per_sec": avg_items_per_sec,
+            "job_count": data["count"]
+        })
 
+    # Get first active data source for test forms
+    first_source = DataSource.objects.filter(is_active=True).first()
+    
+    # Calculate max performance for chart scaling
+    max_performance = max(
+        (item["avg_items_per_sec"] for item in performance_data), 
+        default=100
+    )
+    
+    import os
+    
     context = {
         "performance_data": list(performance_data),
         "gil_status": "DISABLED"
         if settings.DATA_PROCESSOR_SETTINGS["ENABLE_NO_GIL"]
         else "ENABLED",
+        "cpu_count": os.cpu_count() or 1,
+        "max_workers": settings.DATA_PROCESSOR_SETTINGS["MAX_WORKERS"],
+        "first_source_id": first_source.id if first_source else None,
+        "max_performance": max_performance,
     }
 
     return render(request, "processor/compare_performance.html", context)

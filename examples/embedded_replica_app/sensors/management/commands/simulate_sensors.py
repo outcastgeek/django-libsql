@@ -61,7 +61,9 @@ class Command(BaseCommand):
 
         # Detect execution environment
         gil_status = self.get_gil_status()
-        is_embedded = hasattr(connection, 'sync')
+        # Check if this is an embedded replica by looking for SYNC_URL in settings
+        from django.conf import settings
+        is_embedded = bool(settings.DATABASES['default'].get('SYNC_URL'))
         
         self.stdout.write(f"\n{'='*70}")
         self.stdout.write(f"SENSOR SIMULATION - DJANGO MANAGEMENT COMMAND")
@@ -111,11 +113,10 @@ class Command(BaseCommand):
             sync_duration = time.time() - sync_start
             
             SyncLog.objects.create(
-                sync_type='final',
+                sync_type='manual',
                 records_synced=records,
                 duration_ms=int(sync_duration * 1000),
-                success=True,
-                details={'command': 'simulate_sensors'}
+                success=True
             )
 
         # Report results
@@ -194,36 +195,51 @@ class Command(BaseCommand):
         
         def worker(thread_id, sensor_list):
             """Worker thread function."""
+            # Django automatically creates a separate connection for this thread
+            # because allow_thread_sharing = False in the backend
             local_count = 0
             
-            while not stop_event.is_set():
-                # Generate readings for assigned sensors
-                batch = []
-                for sensor in sensor_list:
-                    reading = SensorReading(
-                        sensor_id=sensor,
-                        location=random.choice(locations),
-                        temperature=Decimal(f"{20 + random.random() * 10:.2f}"),
-                        humidity=Decimal(f"{40 + random.random() * 20:.2f}"),
-                        pressure=Decimal(f"{1000 + random.random() * 50:.2f}"),
-                        timestamp=timezone.now()
-                    )
-                    batch.append(reading)
-                
-                # Bulk create with thread-safe transaction
-                with transaction.atomic():
-                    SensorReading.objects.bulk_create(batch)
-                    local_count += len(batch)
-                
-                # Update shared count
-                with lock:
-                    record_counts[thread_id] = local_count
-                
-                # Sync periodically for embedded replicas
-                if hasattr(connection, 'sync') and local_count % 50 == 0:
-                    connection.sync()
-                
-                time.sleep(0.05)  # Small delay
+            try:
+                # Ensure we have sensors to work with
+                if not sensor_list:
+                    print(f"Thread {thread_id}: No sensors assigned")
+                    return
+                    
+                while not stop_event.is_set():
+                    # Generate readings for assigned sensors
+                    batch = []
+                    for sensor in sensor_list:
+                        reading = SensorReading(
+                            sensor_id=sensor,
+                            location=random.choice(locations),
+                            temperature=Decimal(f"{20 + random.random() * 10:.2f}"),
+                            humidity=Decimal(f"{40 + random.random() * 20:.2f}"),
+                            pressure=Decimal(f"{1000 + random.random() * 50:.2f}"),
+                            timestamp=timezone.now()
+                        )
+                        batch.append(reading)
+                    
+                    # Bulk create with thread-safe transaction
+                    try:
+                        with transaction.atomic():
+                            SensorReading.objects.bulk_create(batch)
+                            local_count += len(batch)
+                    except Exception as e:
+                        print(f"Thread {thread_id} error: {e}")
+                        break
+                    
+                    # Update shared count
+                    with lock:
+                        record_counts[thread_id] = local_count
+                    
+                    time.sleep(0.05)  # Small delay
+            except Exception as e:
+                print(f"Thread {thread_id} fatal error: {e}")
+            finally:
+                # Django will clean up this thread's connection automatically
+                # when the thread exits, but we can explicitly close it
+                from django.db import connection
+                connection.close()
         
         # Start threads
         with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:

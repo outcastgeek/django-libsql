@@ -30,10 +30,10 @@ if __name__ == "__main__":
         import django
         django.setup()
         
-        # Register signal handlers ONLY (no cleanup on exit for now)
-        # atexit.register(cleanup)  # DISABLED - Clean on normal exit
-        # signal.signal(signal.SIGINT, signal_handler)  # DISABLED - Clean on Ctrl+C
-        # signal.signal(signal.SIGTERM, signal_handler)  # DISABLED - Clean on termination
+        # Register cleanup handlers
+        atexit.register(cleanup)  # Clean on normal exit
+        signal.signal(signal.SIGINT, signal_handler)  # Clean on Ctrl+C
+        signal.signal(signal.SIGTERM, signal_handler)  # Clean on termination
         
         # Clean before starting
         cleanup()

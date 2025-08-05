@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Data Processor - Django-LibSQL</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+        }
+        .nav {
+            background: white;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+        .nav a {
+            text-decoration: none;
+            color: #555;
+            padding: 0.5rem 1rem;
+        }
+        .nav a:hover {
+            color: #667eea;
+        }
+        .nav a.active {
+            color: #667eea;
+            font-weight: bold;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .stat-card h3 {
+            margin: 0;
+            color: #667eea;
+            font-size: 2rem;
+        }
+        .content {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 2rem;
+        }
+        .jobs-list {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .create-job {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            height: fit-content;
+        }
+        .job-item {
+            border-bottom: 1px solid #eee;
+            padding: 1rem 0;
+        }
+        .job-item:last-child {
+            border-bottom: none;
+        }
+        .job-status {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        .status-pending {
+            background: #ffeaa7;
+            color: #d63031;
+        }
+        .status-running {
+            background: #74b9ff;
+            color: #0984e3;
+        }
+        .status-completed {
+            background: #55efc4;
+            color: #00b894;
+        }
+        .status-failed {
+            background: #ff7675;
+            color: #d63031;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #ddd;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #667eea;
+            transition: width 0.3s ease;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            width: 100%;
+        }
+        button:hover {
+            background: #5a63d8;
+        }
+        .quick-actions {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        .quick-actions h3 {
+            margin-top: 0;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .action-button {
+            flex: 1;
+            min-width: 200px;
+            padding: 1rem;
+            text-align: center;
+            background: #f8f9fa;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #333;
+            transition: all 0.3s ease;
+        }
+        .action-button:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Data Processor</h1>
+        <p>Process large datasets concurrently with django-libsql</p>
+    </div>
+
+    <nav class="nav">
+        <a href="{% url 'processor:index' %}" class="active">Dashboard</a>
+        <a href="{% url 'processor:compare_performance' %}">Performance Comparison</a>
+        <a href="/admin/">Admin Panel</a>
+        <div style="margin-left: auto; color: #666;">
+            <strong>Quick Tips:</strong> Create jobs • Monitor progress • Compare threading performance
+        </div>
+    </nav>
+
+    <div class="quick-actions">
+        <h3>Quick Actions</h3>
+        <div class="action-buttons">
+            <a href="#create-job-form" class="action-button">
+                <strong>Create New Job</strong><br>
+                <small>Process data from configured sources</small>
+            </a>
+            <a href="{% url 'processor:compare_performance' %}" class="action-button">
+                <strong>View Performance</strong><br>
+                <small>Compare GIL vs No-GIL performance</small>
+            </a>
+            <a href="/admin/processor/datasource/" class="action-button">
+                <strong>Manage Data Sources</strong><br>
+                <small>Add or edit data sources</small>
+            </a>
+        </div>
+    </div>
+
+    <div class="stats">
+        <div class="stat-card">
+            <h3>{{ stats.total_jobs }}</h3>
+            <p>Total Jobs</p>
+        </div>
+        <div class="stat-card">
+            <h3>{{ stats.running_jobs }}</h3>
+            <p>Running</p>
+        </div>
+        <div class="stat-card">
+            <h3>{{ stats.completed_jobs }}</h3>
+            <p>Completed</p>
+        </div>
+        <div class="stat-card">
+            <h3>{{ stats.total_processed }}</h3>
+            <p>Items Processed</p>
+        </div>
+    </div>
+
+    <div class="content">
+        <div class="jobs-list">
+            <h2>Recent Jobs</h2>
+            {% if recent_jobs %}
+                {% for job in recent_jobs %}
+                <div class="job-item">
+                    <h3><a href="{% url 'processor:job_detail' job.id %}" style="color: #333; text-decoration: none;">{{ job.name }}</a></h3>
+                    <p>
+                        <span class="job-status status-{{ job.status }}">{{ job.get_status_display }}</span>
+                        • {{ job.num_workers }} workers
+                        • {{ job.processed_items }}/{{ job.total_items }} items
+                        {% if job.status == 'completed' and job.duration %}
+                        • {{ job.duration|floatformat:1 }}s
+                        {% endif %}
+                    </p>
+                    {% if job.status == 'running' %}
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: {{ job.progress_percentage }}%"></div>
+                    </div>
+                    {% endif %}
+                    <p style="font-size: 0.9rem; color: #666;">
+                        Data source: {{ job.data_source.name }}
+                        • Created: {{ job.created_at|date:"M d, g:i A" }}
+                    </p>
+                    {% if job.status == 'running' %}
+                    <form method="post" action="{% url 'processor:cancel_job' job.id %}" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" style="background: #ff7675; width: auto; padding: 0.5rem 1rem; font-size: 0.9rem;">Cancel</button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+                <p>No jobs yet. Create one to get started!</p>
+            {% endif %}
+        </div>
+
+        <div class="create-job" id="create-job-form">
+            <h2>Create New Job</h2>
+            <form method="post" action="{% url 'processor:create_job' %}">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="name">Job Name</label>
+                    <input type="text" id="name" name="name" required placeholder="e.g., Process Sales Data Q4">
+                </div>
+                <div class="form-group">
+                    <label for="data_source">Data Source</label>
+                    <select id="data_source" name="data_source" required>
+                        <option value="">Select a data source...</option>
+                        {% for source in data_sources %}
+                        <option value="{{ source.id }}">{{ source.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="batch_size">Batch Size</label>
+                    <input type="number" id="batch_size" name="batch_size" value="100" min="10" max="1000">
+                </div>
+                <div class="form-group">
+                    <label for="num_workers">Number of Workers</label>
+                    <select id="num_workers" name="num_workers">
+                        <option value="1">1 worker (sequential)</option>
+                        <option value="2">2 workers</option>
+                        <option value="4" selected>4 workers</option>
+                        <option value="8">8 workers</option>
+                        <option value="16">16 workers</option>
+                    </select>
+                </div>
+                <button type="submit">Create Job</button>
+            </form>
+            
+            {% if not data_sources %}
+            <div style="margin-top: 1rem; padding: 1rem; background: #fff3cd; border-radius: 4px;">
+                <strong>No data sources configured!</strong><br>
+                <a href="/admin/processor/datasource/add/">Add a data source</a> to get started.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if recent_jobs %}
+    <script>
+        // Auto-refresh for running jobs
+        const hasRunningJobs = {{ has_running_jobs|lower }};
+        if (hasRunningJobs) {
+            setTimeout(() => {
+                window.location.reload();
+            }, 5000); // Refresh every 5 seconds
+        }
+    </script>
+    {% endif %}
+</body>
+</html>

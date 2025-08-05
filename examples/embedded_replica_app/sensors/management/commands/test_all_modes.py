@@ -40,28 +40,33 @@ class Command(BaseCommand):
         # Define all test modes
         test_modes = [
             {
-                'name': 'Regular Python (Single-threaded)',
-                'env': {},
+                'name': 'Remote-only: Single-threaded',
+                'env': {'USE_EMBEDDED_REPLICA': 'false'},
                 'args': ['--mode', 'single', '--duration', str(duration)]
             },
             {
-                'name': 'Python with Threads',
-                'env': {},
+                'name': 'Remote-only: Multi-threaded',
+                'env': {'USE_EMBEDDED_REPLICA': 'false'},
                 'args': ['--mode', 'multi', '--threads', '4', '--duration', str(duration)]
             },
             {
-                'name': 'Python with Threads + No-GIL',
-                'env': {'PYTHON_GIL': '0'},
+                'name': 'Remote-only: Multi-threaded + No-GIL',
+                'env': {'USE_EMBEDDED_REPLICA': 'false', 'PYTHON_GIL': '0'},
                 'args': ['--mode', 'multi', '--threads', '8', '--duration', str(duration)]
             },
             {
-                'name': 'Embedded Replica + Threads',
-                'env': {'USE_EMBEDDED_REPLICA': '1'},
+                'name': 'Embedded Replica: Single-threaded',
+                'env': {'USE_EMBEDDED_REPLICA': 'true'},
+                'args': ['--mode', 'single', '--duration', str(duration)]
+            },
+            {
+                'name': 'Embedded Replica: Multi-threaded',
+                'env': {'USE_EMBEDDED_REPLICA': 'true'},
                 'args': ['--mode', 'multi', '--threads', '4', '--duration', str(duration)]
             },
             {
-                'name': 'Embedded Replica + Threads + No-GIL',
-                'env': {'USE_EMBEDDED_REPLICA': '1', 'PYTHON_GIL': '0'},
+                'name': 'Embedded Replica: Multi-threaded + No-GIL',
+                'env': {'USE_EMBEDDED_REPLICA': 'true', 'PYTHON_GIL': '0'},
                 'args': ['--mode', 'multi', '--threads', '8', '--duration', str(duration)]
             }
         ]

@@ -23,8 +23,10 @@ setup-examples: sync
 		(uv run python manage.py create_processor_data 2>/dev/null || true)
 	@cd examples/realtime_analytics && uv run python manage.py migrate --noinput && \
 		(uv run python manage.py create_analytics_data 2>/dev/null || true)
-	@cd examples/embedded_replica_app && uv run python manage.py migrate --noinput
-	@cd examples/gil_benchmark && uv run python manage.py migrate --noinput
+	@cd examples/embedded_replica_app && uv run python manage.py migrate --noinput && \
+		(uv run python manage.py create_sensor_data 2>/dev/null || true)
+	@cd examples/gil_benchmark && uv run python manage.py migrate --noinput && \
+		(uv run python manage.py create_benchmark_data 2>/dev/null || true)
 	@echo "✅ All Django apps setup complete!"
 
 # Run ALL tests in ALL modes automatically - NO MANUAL INTERVENTION!
@@ -65,10 +67,10 @@ test-examples: sync setup-examples
 	@cd examples/embedded_replica_app && PYTHON_GIL=0 uv run python -X gil=0 manage.py test_all_modes || echo "No-GIL not available"
 	@cd examples/gil_benchmark && PYTHON_GIL=0 uv run python -X gil=0 manage.py benchmark_all_modes || echo "No-GIL not available"
 	@echo "\n====== MODE 3: Embedded Replica + GIL ======"
-	@cd examples/embedded_replica_app && USE_EMBEDDED_REPLICA=1 uv run python manage.py test_all_modes
+	@cd examples/embedded_replica_app && uv run python manage.py test_all_modes
 	@cd examples/gil_benchmark && USE_EMBEDDED_REPLICA=1 uv run python manage.py benchmark_all_modes
 	@echo "\n====== MODE 4: Embedded Replica + No-GIL ======"
-	@cd examples/embedded_replica_app && USE_EMBEDDED_REPLICA=1 PYTHON_GIL=0 uv run python -X gil=0 manage.py test_all_modes || echo "No-GIL not available"
+	@cd examples/embedded_replica_app && PYTHON_GIL=0 uv run python -X gil=0 manage.py test_all_modes || echo "No-GIL not available"
 	@cd examples/gil_benchmark && USE_EMBEDDED_REPLICA=1 PYTHON_GIL=0 uv run python -X gil=0 manage.py benchmark_all_modes || echo "No-GIL not available"
 	@echo "\n✅ ALL DJANGO APPS TESTED IN ALL MODES!"
 

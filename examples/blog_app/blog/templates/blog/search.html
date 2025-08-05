@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Search Results - Django-LibSQL Blog</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2rem;
+        }
+        .nav {
+            background: white;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .nav a {
+            text-decoration: none;
+            color: #555;
+            margin-right: 2rem;
+        }
+        .nav a:hover {
+            color: #667eea;
+        }
+        .search-info {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .results {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .post {
+            border-bottom: 1px solid #eee;
+            padding: 1.5rem 0;
+        }
+        .post:last-child {
+            border-bottom: none;
+        }
+        .post h2 {
+            margin: 0 0 0.5rem 0;
+        }
+        .post h2 a {
+            color: #333;
+            text-decoration: none;
+        }
+        .post h2 a:hover {
+            color: #667eea;
+        }
+        .post-meta {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+        .highlight {
+            background-color: #ffeaa7;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        .no-results {
+            text-align: center;
+            padding: 4rem 0;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Search Results</h1>
+    </div>
+
+    <nav class="nav">
+        <a href="{% url 'blog:index' %}">← Back to Home</a>
+    </nav>
+
+    <div class="search-info">
+        <h2>Search Query: "{{ query }}"</h2>
+        <p>Found {{ posts.count }} result{{ posts.count|pluralize }}</p>
+    </div>
+
+    <div class="results">
+        {% if posts %}
+            {% for post in posts %}
+            <article class="post">
+                <h2><a href="{% url 'blog:post_detail' post.slug %}">{{ post.title }}</a></h2>
+                <div class="post-meta">
+                    By {{ post.author.user.get_full_name|default:post.author.user.username }} • {{ post.published_date|date:"M d, Y" }}
+                    • Category: <a href="{% url 'blog:category' post.category.slug %}">{{ post.category.name }}</a>
+                </div>
+                <div class="post-excerpt">
+                    {{ post.excerpt|linebreaks }}
+                </div>
+            </article>
+            {% endfor %}
+        {% else %}
+            <div class="no-results">
+                <h3>No posts found</h3>
+                <p>Try searching with different keywords</p>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>

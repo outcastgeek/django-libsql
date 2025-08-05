@@ -25,7 +25,7 @@ def index(request):
             ),
         )
         .annotate(
-            comment_count=Count("comments", filter=Q(comments__is_approved=True)),
+            comment_total=Count("comments", filter=Q(comments__is_approved=True)),
             reply_count=Count(
                 "comments__replies", filter=Q(comments__replies__is_approved=True)
             ),
@@ -50,18 +50,27 @@ def index(request):
         post_count=Count("posts", filter=Q(posts__status="published"))
     ).order_by("-post_count")[:10]
 
+    # Get recent comments
+    recent_comments = (
+        Comment.objects.filter(is_approved=True)
+        .select_related("post")
+        .order_by("-created_at")[:5]
+    )
+    
     context = {
         "posts": posts,
         "popular_posts": popular_posts,
         "categories": categories,
         "popular_tags": popular_tags,
+        "recent_comments": recent_comments,
         "stats": {
-            "total_posts": Post.objects.filter(status="published").count(),
-            "total_authors": Post.objects.filter(status="published")
+            "posts": Post.objects.filter(status="published").count(),
+            "authors": Post.objects.filter(status="published")
             .values("author")
             .distinct()
             .count(),
-            "total_comments": Comment.objects.filter(is_approved=True).count(),
+            "comments": Comment.objects.filter(is_approved=True).count(),
+            "categories": Category.objects.count(),
         },
     }
 
@@ -130,7 +139,7 @@ def category_posts(request, slug):
         )
         .select_related("author__user", "category")
         .prefetch_related("tags")
-        .annotate(comment_count=Count("comments", filter=Q(comments__is_approved=True)))
+        .annotate(comment_total=Count("comments", filter=Q(comments__is_approved=True)))
         .order_by("-published_date")
     )
 
@@ -146,7 +155,7 @@ def category_posts(request, slug):
         ),
     }
 
-    return render(request, "blog/category.html", context)
+    return render(request, "blog/category_posts.html", context)
 
 
 def search(request):
@@ -207,7 +216,7 @@ def api_posts(request):
             "category__slug",
         )
         .annotate(
-            comment_count=Count("comments", filter=Q(comments__is_approved=True)),
+            comment_total=Count("comments", filter=Q(comments__is_approved=True)),
             tag_list=Count("tags"),
         )
         .order_by("-published_date")[:20]

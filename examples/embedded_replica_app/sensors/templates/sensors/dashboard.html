@@ -3,29 +3,224 @@
 <head>
     <title>Sensor Dashboard - Embedded Replica Demo</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
-        .container { max-width: 1200px; margin: 0 auto; }
-        .header { background: #333; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-        .status { display: flex; gap: 20px; margin-bottom: 20px; }
-        .status-card { background: white; padding: 15px; border-radius: 8px; flex: 1; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .status-card h3 { margin-top: 0; color: #333; }
-        .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
-        .badge-success { background: #4CAF50; color: white; }
-        .badge-info { background: #2196F3; color: white; }
-        .badge-warning { background: #ff9800; color: white; }
-        .section { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
-        th { background: #f0f0f0; font-weight: bold; }
-        .actions { margin: 20px 0; }
-        .btn { padding: 10px 20px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-block; }
-        .btn:hover { background: #1976D2; }
-        .btn-success { background: #4CAF50; }
-        .btn-success:hover { background: #45a049; }
-        .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0; }
-        .metric-card { background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center; }
-        .metric-value { font-size: 24px; font-weight: bold; color: #333; }
-        .metric-label { color: #666; font-size: 14px; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            background: #f5f5f5;
+            line-height: 1.6;
+        }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .header { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        .header h1 { margin: 0; font-size: 2.5rem; }
+        .header p { margin: 0.5rem 0 0 0; opacity: 0.9; }
+        
+        .nav {
+            background: white;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+        .nav a {
+            text-decoration: none;
+            color: #555;
+            padding: 0.5rem 1rem;
+        }
+        .nav a:hover { color: #667eea; }
+        .nav a.active {
+            color: #667eea;
+            font-weight: bold;
+        }
+        
+        .status { 
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .status-card { 
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease;
+        }
+        .status-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        .status-card h3 { 
+            margin-top: 0;
+            color: #333;
+            font-size: 1.1rem;
+        }
+        .badge { 
+            display: inline-block;
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .badge-success { background: #d4edda; color: #155724; }
+        .badge-info { background: #d1ecf1; color: #0c5460; }
+        .badge-warning { background: #fff3cd; color: #856404; }
+        
+        .actions-section {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        .actions-section h3 { margin-top: 0; }
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .btn { 
+            padding: 0.75rem 1.5rem;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 1rem;
+            transition: background 0.3s ease;
+        }
+        .btn:hover { background: #5a63d8; }
+        .btn-success { background: #28a745; }
+        .btn-success:hover { background: #218838; }
+        .btn-secondary { background: #6c757d; }
+        .btn-secondary:hover { background: #5a6268; }
+        
+        .section { 
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .section h2 {
+            margin-top: 0;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .metrics { 
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+        .metric-card { 
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+        .metric-card:hover {
+            border-color: #667eea;
+            transform: scale(1.02);
+        }
+        .metric-value { 
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+        .metric-label { 
+            color: #666;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+        
+        table { 
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        th, td { 
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+        th { 
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+        }
+        tr:hover { background: #f8f9fa; }
+        
+        .sync-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: #e3f2fd;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+        .pulse {
+            width: 10px;
+            height: 10px;
+            background: #4caf50;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7);
+            }
+            70% {
+                transform: scale(1);
+                box-shadow: 0 0 0 10px rgba(76, 175, 80, 0);
+            }
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
+            }
+        }
+        
+        pre {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 4px;
+            overflow-x: auto;
+            border: 1px solid #dee2e6;
+        }
+        
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 4px;
+        }
+        
+        @media (max-width: 768px) {
+            .status { grid-template-columns: 1fr; }
+            .metrics { grid-template-columns: 1fr; }
+            .action-buttons { flex-direction: column; }
+            .btn { width: 100%; text-align: center; }
+        }
     </style>
 </head>
 <body>
@@ -33,68 +228,136 @@
         <div class="header">
             <h1>🌡️ IoT Sensor Dashboard</h1>
             <p>Real-time sensor data with Django + libSQL Embedded Replicas</p>
+            <div class="sync-indicator">
+                <span class="pulse"></span>
+                <span>Auto-refresh every 5 seconds</span>
+            </div>
         </div>
+
+        <nav class="nav">
+            <a href="{% url 'sensors:dashboard' %}" class="active">Dashboard</a>
+            <a href="{% url 'sensors:api_readings' %}">API: Readings</a>
+            <a href="{% url 'sensors:api_stats' %}">API: Stats</a>
+            {% if is_embedded %}
+            <a href="{% url 'sensors:api_sync' %}">API: Sync</a>
+            {% endif %}
+            <a href="/admin/">Admin Panel</a>
+            <div style="margin-left: auto; color: #666;">
+                <strong>Mode:</strong> 
+                {% if is_embedded %}
+                    Embedded Replica (Local + Sync)
+                {% else %}
+                    Remote Only
+                {% endif %}
+            </div>
+        </nav>
 
         <div class="status">
             <div class="status-card">
-                <h3>Database Mode</h3>
+                <h3>🗄️ Database Mode</h3>
                 <p>
                     {% if is_embedded %}
                         <span class="badge badge-success">Embedded Replica</span>
-                        <br><small>Local writes with background sync</small>
+                        <br><small style="color: #666; display: block; margin-top: 0.5rem;">
+                            Local SQLite file with automatic background sync to Turso.
+                            Reads are instant, writes sync in background.
+                        </small>
                     {% else %}
                         <span class="badge badge-info">Remote Only</span>
-                        <br><small>Direct Turso connection</small>
+                        <br><small style="color: #666; display: block; margin-top: 0.5rem;">
+                            Direct connection to Turso cloud database.
+                            All operations go through the network.
+                        </small>
                     {% endif %}
                 </p>
             </div>
             
             <div class="status-card">
-                <h3>Python Mode</h3>
+                <h3>🐍 Python Mode</h3>
                 <p>
                     {% if 'NO-GIL' in gil_status %}
                         <span class="badge badge-success">{{ gil_status }}</span>
-                        <br><small>True parallelism enabled</small>
+                        <br><small style="color: #666; display: block; margin-top: 0.5rem;">
+                            Free-threading build with true parallelism.
+                            Multiple threads can execute Python code simultaneously.
+                        </small>
                     {% else %}
                         <span class="badge badge-warning">{{ gil_status }}</span>
-                        <br><small>Standard Python</small>
+                        <br><small style="color: #666; display: block; margin-top: 0.5rem;">
+                            Standard Python with Global Interpreter Lock.
+                            Only one thread executes Python code at a time.
+                        </small>
                     {% endif %}
                 </p>
             </div>
             
             <div class="status-card">
-                <h3>Last Sync</h3>
+                <h3>🔄 Sync Status</h3>
                 <p>
                     {% if latest_sync %}
-                        <span class="badge badge-info">{{ latest_sync.sync_time|timesince }} ago</span>
-                        <br><small>{{ latest_sync.records_synced }} records ({{ latest_sync.duration_ms }}ms)</small>
+                        <span class="badge badge-info">{{ latest_sync.timestamp|timesince }} ago</span>
+                        <br><small style="color: #666; display: block; margin-top: 0.5rem;">
+                            <strong>{{ latest_sync.records_synced }}</strong> records synced
+                            in <strong>{{ latest_sync.duration_ms }}ms</strong>
+                            ({{ latest_sync.sync_type }})
+                        </small>
                     {% else %}
                         <span class="badge badge-warning">No sync yet</span>
+                        <br><small style="color: #666; display: block; margin-top: 0.5rem;">
+                            Waiting for first sync operation.
+                            {% if is_embedded %}Click "Manual Sync" to start.{% endif %}
+                        </small>
                     {% endif %}
+                </p>
+            </div>
+
+            <div class="status-card">
+                <h3>📊 Database Stats</h3>
+                <p>
+                    <span class="badge badge-info">{{ total_readings }} readings</span>
+                    <br><small style="color: #666; display: block; margin-top: 0.5rem;">
+                        <strong>{{ unique_sensors }}</strong> sensors • 
+                        <strong>{{ aggregated_count }}</strong> aggregated records
+                    </small>
                 </p>
             </div>
         </div>
 
-        <div class="actions">
-            <a href="{% url 'admin:index' %}" class="btn">Admin Panel</a>
-            {% if is_embedded %}
-                <button class="btn btn-success" onclick="triggerSync()">Manual Sync</button>
-            {% endif %}
-            <a href="{% url 'sensors:api_readings' %}" class="btn">API: Readings</a>
-            <a href="{% url 'sensors:api_stats' %}" class="btn">API: Stats</a>
+        <div class="actions-section">
+            <h3>Quick Actions</h3>
+            <div class="info-box">
+                <strong>💡 Tip:</strong> Use these actions to interact with the sensor system and see how embedded replicas handle data synchronization.
+            </div>
+            <div class="action-buttons">
+                {% if is_embedded %}
+                    <button class="btn btn-success" onclick="triggerSync()">🔄 Manual Sync</button>
+                {% endif %}
+                <button class="btn" onclick="simulateSensor()">📡 Simulate Sensor Reading</button>
+                <button class="btn btn-secondary" onclick="window.location.reload()">🔃 Refresh Dashboard</button>
+                <a href="/admin/sensors/sensorreading/add/" class="btn btn-secondary">➕ Add Reading (Admin)</a>
+            </div>
         </div>
 
         <div class="section">
             <h2>📊 Sensor Statistics</h2>
+            {% if sensor_stats %}
             <div class="metrics">
                 {% for stat in sensor_stats %}
                 <div class="metric-card">
                     <div class="metric-value">{{ stat.avg_temp|floatformat:1 }}°C</div>
                     <div class="metric-label">{{ stat.sensor_id }}</div>
-                    <small>{{ stat.reading_count }} readings</small>
+                    <small style="color: #666;">
+                        {{ stat.reading_count }} readings<br>
+                        Humidity: {{ stat.avg_humidity|floatformat:0 }}%
+                    </small>
                 </div>
                 {% endfor %}
             </div>
+            {% else %}
+            <p style="text-align: center; color: #666; padding: 2rem;">
+                No sensor data yet. Run the simulation to generate readings!
+            </p>
+            {% endif %}
         </div>
 
         <div class="section">
@@ -102,12 +365,12 @@
             <table>
                 <thead>
                     <tr>
-                        <th>Sensor</th>
+                        <th>Sensor ID</th>
                         <th>Location</th>
                         <th>Temperature</th>
                         <th>Humidity</th>
-                        <th>Pressure</th>
                         <th>Time</th>
+                        <th>Sync Status</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -115,10 +378,22 @@
                     <tr>
                         <td><strong>{{ reading.sensor_id }}</strong></td>
                         <td>{{ reading.location }}</td>
-                        <td>{{ reading.temperature }}°C</td>
-                        <td>{{ reading.humidity }}%</td>
-                        <td>{{ reading.pressure }} hPa</td>
+                        <td>{{ reading.temperature|floatformat:1 }}°C</td>
+                        <td>{{ reading.humidity|floatformat:0 }}%</td>
                         <td>{{ reading.timestamp|timesince }} ago</td>
+                        <td>
+                            {% if reading.synced %}
+                                <span class="badge badge-success">Synced</span>
+                            {% else %}
+                                <span class="badge badge-warning">Pending</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" style="text-align: center; color: #666; padding: 2rem;">
+                            No readings yet. Click "Simulate Sensor Reading" or run the simulation command.
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -126,41 +401,80 @@
         </div>
 
         <div class="section">
-            <h2>🚀 Run Tests</h2>
-            <p>Execute management commands to test different scenarios:</p>
+            <h2>🚀 Run Simulations</h2>
+            <p>Execute these management commands to test different scenarios:</p>
             <pre>
-# Single-threaded simulation
+# Single-threaded simulation (30 seconds)
 python manage.py simulate_sensors --duration 30
 
-# Multi-threaded simulation
+# Multi-threaded simulation (4 threads, 30 seconds)
 python manage.py simulate_sensors --threads 4 --duration 30
+
+# High-frequency mode (10 sensors, 8 threads)
+python manage.py simulate_sensors --sensors 10 --threads 8
 
 # Test ALL modes automatically
 python manage.py test_all_modes
 
-# With no-GIL Python
-PYTHON_GIL=0 python -X gil=0 manage.py simulate_sensors --threads 8
-            </pre>
+# With no-GIL Python (true parallelism)
+PYTHON_GIL=0 python -X gil=0 manage.py simulate_sensors --threads 8</pre>
+            
+            <div class="info-box">
+                <strong>🔍 What to observe:</strong>
+                <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
+                    <li>With embedded replica: Instant local writes, background sync to Turso</li>
+                    <li>Manual sync updates all pending records immediately</li>
+                    <li>No-GIL Python shows better performance with multiple threads</li>
+                    <li>Aggregated data updates automatically every few seconds</li>
+                </ul>
+            </div>
         </div>
     </div>
 
     <script>
         function triggerSync() {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = '⏳ Syncing...';
+            
             fetch("{% url 'sensors:api_sync' %}", {
                 method: 'POST',
                 headers: {
                     'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
                 }
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert('Sync completed successfully!');
+                    alert(`✅ Sync completed!\n\nRecords synced: ${data.records_synced}\nDuration: ${data.duration_ms}ms`);
                     location.reload();
                 } else {
-                    alert('Sync failed: ' + data.error);
+                    alert('❌ Sync failed: ' + (data.error || 'Unknown error'));
+                    btn.disabled = false;
+                    btn.textContent = '🔄 Manual Sync';
                 }
+            })
+            .catch(error => {
+                alert('❌ Sync request failed: ' + error);
+                btn.disabled = false;
+                btn.textContent = '🔄 Manual Sync';
             });
+        }
+
+        function simulateSensor() {
+            const sensors = ['SENSOR-01', 'SENSOR-02', 'SENSOR-03', 'SENSOR-04', 'SENSOR-05'];
+            const locations = ['Building A', 'Building B', 'Warehouse', 'Lab', 'Office'];
+            
+            const data = {
+                sensor_id: sensors[Math.floor(Math.random() * sensors.length)],
+                location: locations[Math.floor(Math.random() * locations.length)],
+                temperature: (20 + Math.random() * 10).toFixed(1),
+                humidity: (40 + Math.random() * 30).toFixed(0)
+            };
+            
+            // For now, just show what would be sent
+            alert(`📡 Simulated reading:\n\nSensor: ${data.sensor_id}\nLocation: ${data.location}\nTemp: ${data.temperature}°C\nHumidity: ${data.humidity}%\n\n(In a real app, this would POST to an API endpoint)`);
         }
 
         // Auto-refresh every 5 seconds

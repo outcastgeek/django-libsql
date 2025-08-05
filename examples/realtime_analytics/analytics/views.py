@@ -62,6 +62,31 @@ def dashboard(request, tracking_id=None):
     if hour_stats and hour_stats.top_referrers:
         top_referrers = hour_stats.top_referrers[:5]
 
+    # Get recent events for display
+    recent_events = Event.objects.filter(
+        website=website,
+        timestamp__gte=now - timedelta(hours=1)
+    ).order_by("-timestamp")[:10]
+    
+    # Calculate some simple stats for the demo
+    stats = {
+        "page_views_today": today_stats.pageviews if today_stats else 0,
+        "unique_visitors_today": today_stats.unique_visitors if today_stats else 0,
+        "events_today": Event.objects.filter(
+            website=website,
+            timestamp__gte=timezone.make_aware(datetime.combine(today, datetime.min.time())),
+            timestamp__lt=timezone.make_aware(datetime.combine(today + timedelta(days=1), datetime.min.time()))
+        ).count(),
+        "active_sessions": realtime_count,
+        "page_views_change": 15,  # Demo value
+        "visitors_change": 12,  # Demo value
+        "events_per_minute": 3,  # Demo value
+        "avg_session_duration": 5,  # Demo value
+    }
+    
+    # Get max page views for chart scaling
+    max_page_views = max((p.get("view_count", 0) for p in top_pages), default=100)
+    
     context = {
         "website": website,
         "websites": Website.objects.filter(is_active=True),
@@ -71,6 +96,9 @@ def dashboard(request, tracking_id=None):
         "hour_stats": hour_stats or {},
         "top_pages": top_pages,
         "top_referrers": top_referrers,
+        "stats": stats,
+        "recent_events": recent_events,
+        "max_page_views": max_page_views,
     }
 
     return render(request, "analytics/dashboard.html", context)

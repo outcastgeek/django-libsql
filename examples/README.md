@@ -158,8 +158,11 @@ make test-django-app-embedded APP=gil_benchmark CMD='run_benchmark --test mixed'
 # Manual No-GIL execution
 PYTHON_GIL=0 uv run python -X gil=0 examples/gil_benchmark/manage.py run_benchmark
 
-# Manual Embedded Replica execution
-USE_EMBEDDED_REPLICA=1 uv run python examples/embedded_replica_app/manage.py simulate_sensors
+# Manual Embedded Replica execution (defaults to embedded replica mode)
+uv run python examples/embedded_replica_app/manage.py simulate_sensors
+
+# To use remote-only mode instead
+USE_EMBEDDED_REPLICA=false uv run python examples/embedded_replica_app/manage.py simulate_sensors
 ```
 
 ### Manual Execution
