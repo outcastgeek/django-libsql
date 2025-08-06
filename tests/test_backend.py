@@ -165,10 +165,11 @@ class LibSQLTransactionTest(TransactionTestCase):
         try:
             with transaction.atomic():
                 TestModel.objects.create(name="rollback_test", value=99)
-                # Force an error
-                raise Exception("Intentional error")
-        except Exception:
-            pass
+                # Force an error for testing rollback
+                raise ValueError("Intentional error for rollback test")
+        except ValueError as e:
+            # This is expected - we're testing rollback behavior
+            assert "Intentional error for rollback test" in str(e)
 
         # Verify rollback
         self.assertEqual(TestModel.objects.count(), initial_count)
@@ -204,14 +205,17 @@ class LibSQLTransactionTest(TransactionTestCase):
                 try:
                     with transaction.atomic():
                         TestModel.objects.create(name="inner", value=2)
-                        raise Exception("Inner error")
-                except Exception:
-                    pass
+                        raise ValueError("Inner error for nested transaction test")
+                except ValueError as e:
+                    # Expected error for testing nested transaction behavior
+                    assert "Inner error for nested transaction test" in str(e)
 
                 # Outer transaction should still work
                 TestModel.objects.create(name="outer2", value=3)
-        except Exception:
-            pass
+        except Exception as e:
+            # Outer transaction might fail if savepoints not supported
+            # This is expected for libSQL
+            print(f"Outer transaction failed (expected for libSQL): {e}")
 
         # Check what was committed
         final_count = TestModel.objects.count()

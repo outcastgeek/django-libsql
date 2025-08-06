@@ -22,3 +22,5 @@ CLAUDE.md
 *.db-lock
 *.db-temp
 *.db-sqlite
+tests/.tmp.*
+

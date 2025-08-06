@@ -27,23 +27,53 @@ def django_db_setup(django_db_blocker):
     """Override django_db_setup to ensure migrations are run."""
     from django.core.management import call_command
     from django.db import connection
+    import os
 
     with django_db_blocker.unblock():
-        # Create migrations if needed
+        # For embedded replica mode, we need to ensure tables exist
+        is_embedded = os.environ.get('USE_EMBEDDED_REPLICA', 'False').lower() in ('true', '1', 'yes')
+        
+        # Always create migrations first
+        call_command("makemigrations", "testapp", verbosity=0, interactive=False)
+        
+        # Check if tables already exist to avoid "table already exists" error
+        connection.ensure_connection()
+        
+        # Try to check if migrations table exists
         try:
-            call_command("makemigrations", "testapp", verbosity=0, interactive=False)
-        except Exception:
-            pass
-
-        # Run migrations
-        call_command("migrate", verbosity=0, interactive=False)
-
-        # Ensure connection is synced for libSQL
-        if hasattr(connection, "sync"):
-            try:
-                connection.sync()
-            except Exception:
-                pass
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='django_migrations'")
+                has_migrations_table = cursor.fetchone() is not None
+        except Exception as e:
+            # If we can't check, assume no tables
+            has_migrations_table = False
+        
+        # For embedded replica, we need special handling for migrations
+        if is_embedded:
+            # First, try to sync any existing tables from remote
+            if hasattr(connection, "sync"):
+                try:
+                    connection.sync()
+                except Exception as e:
+                    # Only ignore if it's the expected error for no tables
+                    if "no such table" not in str(e).lower():
+                        raise  # Re-raise unexpected errors
+            
+            # Always use normal migrate for embedded replica too
+            # The --run-syncdb flag causes issues with Django's built-in migrations
+            call_command("migrate", verbosity=1, interactive=False)
+            
+            # After migrations, sync again to ensure LOCAL has all the tables
+            if hasattr(connection, "sync"):
+                try:
+                    connection.sync()
+                    connection.commit()
+                except Exception as e:
+                    print(f"Warning: Sync after migrations failed: {e}")
+        else:
+            # For remote-only mode, always use normal migrate
+            # Django will handle creating tables if they don't exist
+            call_command("migrate", verbosity=1, interactive=False)
 
 
 @pytest.fixture(autouse=True)
@@ -60,20 +90,16 @@ def reset_test_data(db):
             Book.objects.all().delete()
             RelatedModel.objects.all().delete()
             TestModel.objects.all().delete()
-
-        # Force commit
-        connection.commit()
+        # Transaction automatically commits when exiting the atomic block
         
         # Only sync for embedded replicas (not remote-only connections)
         if hasattr(connection, "sync") and connection.settings_dict.get("SYNC_URL"):
-            try:
-                connection.sync()
-            except Exception:
-                # Sync not available for this connection type
-                pass
+            connection.sync()
     except Exception as e:
-        # Tables might not exist yet  
-        pass
+        # Only ignore if tables don't exist (first run) - all other errors should propagate
+        if "no such table" not in str(e).lower():
+            raise  # Re-raise any unexpected errors
+        # Tables don't exist yet - this is fine, Django will create them
 
 
 def _cleanup_test_database(verbose=True):
@@ -120,13 +146,37 @@ def _cleanup_test_database(verbose=True):
     except Exception as e:
         if verbose:
             print(f"Warning: Database cleanup failed: {e}")
+        # Re-raise to fail loudly - NO EXCEPTION SWALLOWING!
+        raise
 
 
 @pytest.fixture(scope="session", autouse=True)
 def cleanup_database_before_and_after_tests(request):
     """Clean up all test artifacts BEFORE and AFTER the entire test session."""
-    # Clean BEFORE tests start
-    _cleanup_test_database()
+    import os
+    from pathlib import Path
+    
+    # For embedded replica mode, ALWAYS clean up local files BEFORE tests
+    # This ensures we start fresh with an empty local replica
+    base_dir = Path(__file__).resolve().parent
+    replica_files = [
+        base_dir / "test_replica.db",
+        base_dir / "test_replica.db-wal",
+        base_dir / "test_replica.db-shm",
+        base_dir / "test_replica.db-info"
+    ]
+    for f in replica_files:
+        if f.exists():
+            f.unlink()
+    
+    # DON'T clean remote database here - it's cleaned by Makefile between modes
+    # _cleanup_test_database()  # REMOVED - handled by Makefile
     
     # Register cleanup to run AFTER all tests
-    request.addfinalizer(_cleanup_test_database)
+    def final_cleanup():
+        # Only clean up local files, not remote
+        for f in replica_files:
+            if f.exists():
+                f.unlink()
+    
+    request.addfinalizer(final_cleanup)

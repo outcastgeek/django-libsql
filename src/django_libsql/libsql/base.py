@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import time
 import threading
+import libsql
 from django.db.backends.sqlite3 import base as sqlite_base
 from .creation import DatabaseCreation
 from .schema import DatabaseSchemaEditor
@@ -43,9 +44,9 @@ class Database:
     class NotSupportedError(DatabaseError):
         pass
     
-    # SQLite version info for Django compatibility
-    sqlite_version_info = (3, 39, 0)  # libSQL is based on SQLite 3.39+
-    version_info = (3, 39, 0)
+    # Get SQLite version info directly from libSQL runtime
+    sqlite_version_info = libsql.sqlite_version_info
+    version_info = libsql.sqlite_version_info
     
     # Constants Django expects
     PARSE_DECLTYPES = 1
@@ -61,27 +62,28 @@ class LibSQLCursorWrapper:
     A wrapper for libSQL cursors to make them compatible with Django's expectations.
     """
 
-    def __init__(self, cursor):
+    def __init__(self, cursor, db_wrapper=None):
         self.cursor = cursor
+        self.db_wrapper = db_wrapper
 
     def execute(self, query, params=None):
         from django.db import IntegrityError
 
         try:
             if params is None:
-                return self.cursor.execute(query)
-
-            # Convert Django's %s placeholders to ? for SQLite/libSQL
-            if isinstance(params, (list, tuple)):
+                result = self.cursor.execute(query)
+            elif isinstance(params, (list, tuple)):
                 # Convert from "format" style (%s) to "qmark" style (?)
                 query = FORMAT_QMARK_REGEX.sub("?", query).replace("%%", "%")
-                return self.cursor.execute(query, params)
+                result = self.cursor.execute(query, params)
             elif isinstance(params, dict):
                 # Convert from "pyformat" style (%(name)s) to "named" style (:name)
                 query = query % {name: f":{name}" for name in params}
-                return self.cursor.execute(query, params)
+                result = self.cursor.execute(query, params)
             else:
-                return self.cursor.execute(query, params)
+                result = self.cursor.execute(query, params)
+            
+            return result
         except ValueError as e:
             error_str = str(e)
             # Convert libSQL constraint errors to Django IntegrityError
@@ -272,7 +274,7 @@ class DatabaseWrapper(sqlite_base.DatabaseWrapper):
         cursor = self.connection.cursor()
 
         # Use our custom wrapper for libSQL cursors
-        return LibSQLCursorWrapper(cursor)
+        return LibSQLCursorWrapper(cursor, self)
 
     def disable_constraint_checking(self):
         """

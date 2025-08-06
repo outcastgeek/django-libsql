@@ -32,30 +32,50 @@ setup-examples: sync
 # Run ALL tests in ALL modes automatically - NO MANUAL INTERVENTION!
 test-all: sync
 	@echo "🚀 Running ALL tests in ALL modes..."
-	@echo "\n====== SCENARIO 1: Regular Python (Single-threaded) ======"
-	@uv run pytest tests/test_backend.py -v
-	@uv run pytest tests/test_embedded_replica.py::TestEmbeddedReplicaAllModes::test_all_scenarios_single_process -v
-	@echo "\n====== SCENARIO 2: Python with Threads ======"
-	@uv run pytest tests/test_threading.py -v
-	@uv run pytest tests/test_embedded_replica.py::TestEmbeddedReplicaAllModes::test_all_scenarios_with_threads -v
-	@echo "\n====== SCENARIO 3: Python with Threads + No-GIL ======"
-	@PYTHON_GIL=0 uv run python -X gil=0 -m pytest tests/test_threading.py -v || echo "No-GIL not available"
-	@PYTHON_GIL=0 uv run python -X gil=0 -m pytest tests/test_embedded_replica.py::TestEmbeddedReplicaAllModes::test_all_scenarios_with_threads -v || echo "No-GIL not available"
-	@echo "\n====== SCENARIO 4: Python with Threads + No-GIL + Django ORM ======"
+	@echo "Cleaning database before tests..."
+	@uv run python tests/cleanup_tests.py
+	@echo "\n====== PART 1: REMOTE-ONLY MODE TESTS ======"
+	@echo "Testing with direct Turso connection (no embedded replica)..."
+	@USE_EMBEDDED_REPLICA=false uv run pytest tests/test_backend.py -v
+	@USE_EMBEDDED_REPLICA=false uv run pytest tests/test_remote_only.py -v
+	@echo "\n====== PART 2: EMBEDDED REPLICA MODE TESTS ======"
+	@echo "Cleaning up before embedded replica tests..."
+	@uv run python tests/cleanup_tests.py
+	@rm -f tests/test_replica.db* 2>/dev/null || true
+	@echo "Testing with embedded replica (local file + remote sync)..."
+	@USE_EMBEDDED_REPLICA=true uv run pytest tests/test_backend.py -v
+	@echo "Cleaning between test files..."
+	@uv run python tests/cleanup_tests.py
+	@rm -f tests/test_replica.db* 2>/dev/null || true
+	@USE_EMBEDDED_REPLICA=true uv run pytest tests/test_threading.py -v
+	@echo "Cleaning between test files..."
+	@uv run python tests/cleanup_tests.py
+	@rm -f tests/test_replica.db* 2>/dev/null || true
+	@USE_EMBEDDED_REPLICA=true uv run pytest tests/test_embedded_replica.py::TestEmbeddedReplicaAllModes::test_all_scenarios_single_process -v
+	@echo "\n====== PART 3: EMBEDDED REPLICA WITH THREADS ======"
+	@USE_EMBEDDED_REPLICA=true uv run pytest tests/test_embedded_replica.py::TestEmbeddedReplicaAllModes::test_all_scenarios_with_threads -v
+	@echo "\n====== PART 4: EMBEDDED REPLICA WITH NO-GIL ======"
+	@USE_EMBEDDED_REPLICA=true PYTHON_GIL=0 uv run python -X gil=0 -m pytest tests/test_threading.py -v || echo "No-GIL not available"
+	@USE_EMBEDDED_REPLICA=true PYTHON_GIL=0 uv run python -X gil=0 -m pytest tests/test_embedded_replica.py::TestEmbeddedReplicaAllModes::test_all_scenarios_with_threads -v || echo "No-GIL not available"
+	@echo "\n====== PART 5: PERFORMANCE COMPARISONS ======"
 	@uv run pytest tests/test_gil_comparison.py -v
 	@PYTHON_GIL=0 uv run python -X gil=0 -m pytest tests/test_gil_comparison.py -v || echo "No-GIL not available"
 	@echo "\n✅ ALL SCENARIOS TESTED AUTOMATICALLY!"
 
+# Run tests in remote-only mode
+test-remote: sync
+	@echo "🌐 Running tests in remote-only mode..."
+	@USE_EMBEDDED_REPLICA=false uv run pytest tests/test_backend.py tests/test_remote_only.py -v
+
+# Run tests in embedded replica mode
+test-embedded: sync
+	@echo "💾 Running tests in embedded replica mode..."
+	@USE_EMBEDDED_REPLICA=true uv run pytest tests/test_backend.py tests/test_threading.py tests/test_embedded_replica.py -v
+
 # Run basic tests only (pytest auto-discovers!)
 test-basic: sync
 	@echo "Running basic tests..."
-	@uv run pytest tests/test_backend.py tests/test_threading.py -v
-
-# Run embedded replica tests (REQUIRES LOCAL FILE SETUP!)
-test-embedded: sync
-	@echo "Running embedded replica tests..."
-	@echo "NOTE: These tests require embedded replica setup (local file + sync URL)"
-	@USE_EMBEDDED_REPLICA=true uv run pytest tests/test_embedded_replica.py -v
+	@uv run pytest tests/test_backend.py -v
 
 # Run all Django example apps in ALL REQUIRED MODES - NO MANUAL INTERVENTION!
 test-examples: sync setup-examples
@@ -189,7 +209,8 @@ help:
 	@echo "  make test-all      - Run ALL tests in ALL modes (comprehensive)"
 	@echo "  make test          - Run quick basic tests"
 	@echo "  make test-basic    - Run basic functionality tests"
-	@echo "  make test-embedded - Run embedded replica tests"
+	@echo "  make test-remote   - Run tests in remote-only mode"
+	@echo "  make test-embedded - Run tests in embedded replica mode"
 	@echo "  make test-examples - Run all Django apps in all modes"
 	@echo "  make benchmark     - Run performance benchmarks"
 	@echo "  make test-coverage - Run tests with coverage report"

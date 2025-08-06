@@ -63,8 +63,9 @@ def parse_quick_result(output):
                 parts = line.split(":")[1].strip()
                 ops_per_sec = float(parts.split()[1])
                 return ops_per_sec
-            except:
-                pass
+            except (ValueError, IndexError, AttributeError) as e:
+                # Parsing failed - this is a serious error, fail loudly
+                raise RuntimeError(f"Failed to parse result line '{line}': {e}") from e
     return None
 
 
